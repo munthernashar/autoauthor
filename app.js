@@ -67,7 +67,29 @@ async function callOpenAI(prompt, { system = "", json = false } = {}) {
     throw new Error(`OpenAI Fehler: ${res.status} ${msg}`);
   }
   const data = await res.json();
-  return data.output_text || "";
+
+  // `output_text` is not guaranteed across all model/response combinations.
+  // Fallback to extracting text chunks from output[].content[] to avoid empty UI.
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text;
+  }
+
+  const textChunks = [];
+  for (const item of data.output || []) {
+    for (const part of item.content || []) {
+      if (part?.type === "output_text" && typeof part?.text === "string") {
+        textChunks.push(part.text);
+      }
+      if (part?.type === "text" && typeof part?.text === "string") {
+        textChunks.push(part.text);
+      }
+    }
+  }
+
+  const fallbackText = textChunks.join("\n").trim();
+  if (fallbackText) return fallbackText;
+
+  throw new Error("OpenAI hat geantwortet, aber ohne auslesbaren Textinhalt.");
 }
 
 async function generateImage(prompt) {
