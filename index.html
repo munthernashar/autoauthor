@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookForge AI – Static GitHub Pages Book Builder</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>📚 BookForge AI</h1>
+      <p>Statische GitHub-Pages-App für KI-gestützte Sachbuch-Erstellung (Kapitel für Kapitel).</p>
+    </header>
+
+    <main>
+      <section class="card api-card">
+        <h2>1) KI Verbindung</h2>
+        <div class="row">
+          <label>Provider:
+            <select id="provider">
+              <option value="openai">OpenAI</option>
+              <option value="ollama">Ollama (lokal)</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="openaiConfig">
+          <p>OpenAI: Dein API-Key bleibt nur in deinem Browser (localStorage).</p>
+          <div class="row">
+            <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+            <button id="saveApiKey">Verbindung speichern</button>
+            <button id="clearApiKey" class="secondary">Löschen</button>
+          </div>
+          <div class="row">
+            <label>Textmodell:
+              <input id="textModel" value="gpt-4.1-mini" />
+            </label>
+            <label>Bildmodell:
+              <input id="imageModel" value="gpt-image-1" />
+            </label>
+          </div>
+        </div>
+
+        <div id="ollamaConfig">
+          <p>Ollama lokal: Gib URL + Modell ein (z. B. `http://localhost:11434`, `llama3.1:8b`).</p>
+          <div class="grid two">
+            <label>Ollama Base URL<input id="ollamaBaseUrl" value="http://localhost:11434" /></label>
+            <label>Ollama Modell<input id="ollamaModel" value="llama3.1:8b" /></label>
+            <label>Temperatur (optional)<input id="ollamaTemperature" type="number" step="0.1" placeholder="0.7" /></label>
+          </div>
+          <div class="row">
+            <button id="saveOllama" type="button">Verbindung speichern</button>
+          </div>
+          <small>Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.</small>
+        </div>
+
+        <p id="apiStatus" class="status"></p>
+      </section>
+
+      <section class="card">
+        <h2>2) Projekt / Research</h2>
+        <div class="grid two">
+          <label>Buchtitel (optional)<input id="bookTitle" /></label>
+          <label>Autorname / Pen Name<input id="authorName" /></label>
+          <label>Genre<input id="genre" placeholder="Non-Fiction / Self-Help" /></label>
+          <label>Hauptthema<input id="topic" /></label>
+        </div>
+        <label>Stance / Unique Take<textarea id="stance" rows="3"></textarea></label>
+        <label>Was macht das Buch besonders?<textarea id="differentiator" rows="3"></textarea></label>
+        <div class="grid two">
+          <label>Tonalität<input id="tone" placeholder="Konversationell, klar, motivierend" /></label>
+          <label>Zielgruppe<input id="audience" placeholder="Berufstätige Eltern ..." /></label>
+        </div>
+        <button id="saveResearch">Research speichern</button>
+      </section>
+
+      <section class="card">
+        <h2>3) Market Analysis</h2>
+        <p>Füge Wettbewerber-Bücher hinzu und lasse ihre Stärken/Schwächen analysieren.</p>
+        <div class="row">
+          <input id="competitorTitle" placeholder="Buchtitel" />
+          <input id="competitorUrl" placeholder="URL (optional)" />
+          <button id="addCompetitor">Hinzufügen</button>
+        </div>
+        <ul id="competitorList"></ul>
+        <button id="analyzeMarket">Marktanalyse erzeugen</button>
+        <textarea id="marketAnalysis" rows="8" placeholder="Analyse erscheint hier..."></textarea>
+      </section>
+
+      <section class="card">
+        <h2>4) Titelgenerator</h2>
+        <button id="generateTitles">10 Titel generieren</button>
+        <ol id="titleOptions"></ol>
+      </section>
+
+      <section class="card">
+        <h2>5) Ressourcen Upload</h2>
+        <p>Links, Notizen und Dateien als Kontext (lokal gespeichert).</p>
+        <div class="row">
+          <input id="resourceUrl" placeholder="https://..." />
+          <button id="addResourceUrl">Link hinzufügen</button>
+        </div>
+        <textarea id="resourceText" rows="4" placeholder="Research-Notizen"></textarea>
+        <div class="row">
+          <button id="addResourceText">Text hinzufügen</button>
+          <input id="resourceFile" type="file" multiple />
+        </div>
+        <ul id="resourceList"></ul>
+      </section>
+
+      <section class="card">
+        <h2>6) Author Persona</h2>
+        <div class="grid two">
+          <label>Persona Name<input id="personaName" /></label>
+          <label>Referenz-Autor*innen<input id="personaRefs" placeholder="z. B. James Clear" /></label>
+        </div>
+        <label>Hintergrund / Expertise<textarea id="personaBackground" rows="4"></textarea></label>
+        <label>Writing Sample<textarea id="writingSample" rows="4"></textarea></label>
+        <button id="generatePersona">Persona generieren</button>
+        <textarea id="personaResult" rows="8"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>7) Proposed Book + Outline</h2>
+        <div class="row">
+          <input id="focusTags" placeholder="Tags kommasepariert: Praxisnah, Mikro-Schritte, ..." />
+          <button id="generateProposedBook">Proposed Book erzeugen</button>
+        </div>
+        <textarea id="proposedBook" rows="8"></textarea>
+
+        <div class="grid three">
+          <label>Ziel-Wörter<input id="targetWords" type="number" value="25000" /></label>
+          <label>Kapitel<input id="chapterCount" type="number" value="10" /></label>
+          <label>Struktur<input id="structure" value="Problem-Solution" /></label>
+        </div>
+        <button id="generateOutline">Outline generieren</button>
+        <textarea id="outline" rows="14" placeholder="JSON Outline ..."></textarea>
+      </section>
+
+      <section class="card">
+        <h2>8) Buch schreiben – Kapitel für Kapitel</h2>
+        <p>Best Practice: Immer sequenziell generieren, damit jedes Kapitel auf dem vorherigen aufbaut.</p>
+        <div class="row">
+          <button id="generateNextSection">Nächste Sektion generieren</button>
+          <button id="rewriteCurrent" class="secondary">Aktuelle Sektion neu schreiben</button>
+        </div>
+        <p id="writingProgress" class="status"></p>
+        <textarea id="currentSection" rows="10" placeholder="Aktuelle Sektion"></textarea>
+        <label>Gesamtes Manuskript</label>
+        <textarea id="manuscript" rows="16"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>9) Inline Editor Tools</h2>
+        <p>Markiere Text im Feld „Aktuelle Sektion“, kopiere ihn ins Feld unten und verbessere ihn.</p>
+        <textarea id="editorInput" rows="6" placeholder="Textabschnitt"></textarea>
+        <div class="row wrap">
+          <button data-edit="format">Edit & Format</button>
+          <button data-edit="elaborate">Elaborate</button>
+          <button data-edit="cta">Call to Action</button>
+          <button data-edit="history">Historische Einordnung</button>
+          <button data-edit="quote">Mit Zitat stärken</button>
+          <button data-edit="source">Quelle ergänzen</button>
+          <button data-edit="data">Mit Daten stärken</button>
+        </div>
+        <input id="customEditPrompt" placeholder="Custom Enhancement Prompt" />
+        <button id="customEditBtn">Custom Enhancement</button>
+        <textarea id="editorOutput" rows="8"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>10) Bilder & Cover</h2>
+        <textarea id="imagePrompt" rows="3" placeholder="Prompt für Innenbild / Diagramm"></textarea>
+        <div class="row">
+          <button id="generateImage">Bild generieren</button>
+          <button id="generateCover">Cover generieren</button>
+        </div>
+        <div id="imageResults" class="images"></div>
+      </section>
+
+      <section class="card">
+        <h2>11) Beschreibung & Export</h2>
+        <button id="generateDescription">Buchbeschreibung generieren</button>
+        <textarea id="bookDescription" rows="8"></textarea>
+        <div class="row wrap">
+          <button id="downloadMarkdown">Download .md</button>
+          <button id="downloadDocHtml">Download .doc (HTML)</button>
+          <button id="saveProjectJson" class="secondary">Projekt JSON exportieren</button>
+          <button id="loadProjectJson" class="secondary">Projekt JSON importieren</button>
+          <input id="projectFile" type="file" accept="application/json" hidden />
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Hinweis: Diese App ist statisch für GitHub Pages. API-Key-Sicherheit liegt in deiner Verantwortung.</small>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
