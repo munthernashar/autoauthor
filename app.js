@@ -64,24 +64,27 @@ function extractTextFromResponse(data) {
   }
 
   // Secondary fallback: tolerate variant payloads by recursively looking for useful text.
-  const seen = new Set();
-  const walk = (node) => {
-    if (!node || typeof node !== "object") return;
-    if (seen.has(node)) return;
-    seen.add(node);
+  // Run only when primary extraction found nothing to avoid duplicated text blocks.
+  if (!chunks.length) {
+    const seen = new Set();
+    const walk = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (seen.has(node)) return;
+      seen.add(node);
 
-    if (typeof node.value === "string" && node.value.trim() && node.type === "output_text") {
-      chunks.push(node.value);
-    }
-    if (typeof node.text === "string" && node.text.trim() && (node.type === "output_text" || node.type === "text")) {
-      chunks.push(node.text);
-    }
+      if (typeof node.value === "string" && node.value.trim() && node.type === "output_text") {
+        chunks.push(node.value);
+      }
+      if (typeof node.text === "string" && node.text.trim() && (node.type === "output_text" || node.type === "text")) {
+        chunks.push(node.text);
+      }
 
-    for (const value of Object.values(node)) {
-      if (value && typeof value === "object") walk(value);
-    }
-  };
-  walk(data);
+      for (const value of Object.values(node)) {
+        if (value && typeof value === "object") walk(value);
+      }
+    };
+    walk(data);
+  }
 
   return chunks.join("\n").trim();
 }
