@@ -238,6 +238,58 @@ function parseOutlineToFlatSections(outlineObj) {
   return flat;
 }
 
+
+function extractFirstJsonObject(text) {
+  if (typeof text !== "string") return "";
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+
+  // Fast path: already valid JSON
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {}
+
+  // Fallback: scan for first balanced {...} block while respecting strings/escapes.
+  const start = trimmed.indexOf("{");
+  if (start < 0) return "";
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < trimmed.length; i += 1) {
+    const ch = trimmed[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{") depth += 1;
+    if (ch === "}") depth -= 1;
+
+    if (depth === 0) {
+      const candidate = trimmed.slice(start, i + 1).trim();
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        return "";
+      }
+    }
+  }
+
+  return "";
+}
+
 function bindEvents() {
   $("saveApiKey").addEventListener("click", () => {
     state.apiKey = $("apiKey").value.trim();
@@ -448,7 +500,11 @@ Input:\n${JSON.stringify(spec, null, 2)}`;
     $("outline").value = "Generiere JSON...";
     try {
       const out = await callOpenAI(prompt, { system, json: true });
-      const parsed = JSON.parse(out);
+      const jsonText = extractFirstJsonObject(out);
+      if (!jsonText) {
+        throw new Error("Outline konnte nicht als gültiges JSON gelesen werden. Bitte erneut versuchen.");
+      }
+      const parsed = JSON.parse(jsonText);
       state.outline = parsed;
       state.flatSections = parseOutlineToFlatSections(parsed);
       state.currentSectionIndex = 0;
