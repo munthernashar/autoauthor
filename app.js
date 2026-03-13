@@ -1,9 +1,13 @@
 const $ = (id) => document.getElementById(id);
 
 const state = {
+  provider: localStorage.getItem("ai_provider") || "openai",
   apiKey: localStorage.getItem("openai_api_key") || "",
   textModel: localStorage.getItem("text_model") || "gpt-4.1-mini",
   imageModel: localStorage.getItem("image_model") || "gpt-image-1",
+  ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
+  ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
+  ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
   research: {},
   competitors: [],
   resources: [],
@@ -19,12 +23,25 @@ const state = {
 };
 
 function refreshApiUI() {
+  $("provider").value = state.provider;
   $("apiKey").value = state.apiKey;
   $("textModel").value = state.textModel;
   $("imageModel").value = state.imageModel;
-  $("apiStatus").textContent = state.apiKey
-    ? "✅ API-Key gesetzt"
-    : "⚠️ Kein API-Key gesetzt";
+  $("ollamaBaseUrl").value = state.ollamaBaseUrl;
+  $("ollamaModel").value = state.ollamaModel;
+  $("ollamaTemperature").value = state.ollamaTemperature;
+
+  const isOpenAI = state.provider === "openai";
+  $("openaiConfig").style.display = isOpenAI ? "block" : "none";
+  $("ollamaConfig").style.display = isOpenAI ? "none" : "block";
+
+  if (isOpenAI) {
+    $("apiStatus").textContent = state.apiKey
+      ? "✅ OpenAI verbunden (API-Key gesetzt)"
+      : "⚠️ OpenAI aktiv, aber kein API-Key gesetzt";
+  } else {
+    $("apiStatus").textContent = `✅ Ollama aktiv (${state.ollamaBaseUrl}, Modell: ${state.ollamaModel})`;
+  }
 }
 
 function saveProjectToLocal() {
@@ -120,7 +137,51 @@ async function callOpenAI(prompt, { system = "", json = false } = {}) {
   throw new Error("OpenAI hat geantwortet, aber ohne auslesbaren Textinhalt.");
 }
 
+async function callOllama(prompt, { system = "" } = {}) {
+  const baseUrl = (state.ollamaBaseUrl || "http://localhost:11434").replace(/\/$/, "");
+  if (!state.ollamaModel) throw new Error("Bitte Ollama Modell setzen.");
+
+  const payload = {
+    model: state.ollamaModel,
+    prompt,
+    system,
+    stream: false,
+  };
+
+  const temp = Number(state.ollamaTemperature);
+  if (!Number.isNaN(temp)) {
+    payload.options = { temperature: temp };
+  }
+
+  const res = await fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Ollama Fehler: ${res.status} ${msg}`);
+  }
+
+  const data = await res.json();
+  const text = (data?.response || "").trim();
+  if (text) return text;
+
+  throw new Error("Ollama hat geantwortet, aber ohne Textinhalt.");
+}
+
+async function callTextModel(prompt, options = {}) {
+  if (state.provider === "ollama") {
+    return callOllama(prompt, options);
+  }
+  return callOpenAI(prompt, options);
+}
+
 async function generateImage(prompt) {
+  if (state.provider !== "openai") {
+    throw new Error("Bildgenerierung ist aktuell nur mit OpenAI verfügbar. Bitte Provider wechseln.");
+  }
   if (!state.apiKey) throw new Error("Bitte API-Key setzen.");
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -291,13 +352,35 @@ function extractFirstJsonObject(text) {
 }
 
 function bindEvents() {
+  $("provider").addEventListener("change", () => {
+    state.provider = $("provider").value;
+    localStorage.setItem("ai_provider", state.provider);
+    refreshApiUI();
+    saveProjectToLocal();
+  });
+
   $("saveApiKey").addEventListener("click", () => {
+    state.provider = "openai";
     state.apiKey = $("apiKey").value.trim();
     state.textModel = $("textModel").value.trim() || "gpt-4.1-mini";
     state.imageModel = $("imageModel").value.trim() || "gpt-image-1";
+    localStorage.setItem("ai_provider", state.provider);
     localStorage.setItem("openai_api_key", state.apiKey);
     localStorage.setItem("text_model", state.textModel);
     localStorage.setItem("image_model", state.imageModel);
+    refreshApiUI();
+    saveProjectToLocal();
+  });
+
+  $("saveOllama").addEventListener("click", () => {
+    state.provider = "ollama";
+    state.ollamaBaseUrl = $("ollamaBaseUrl").value.trim() || "http://localhost:11434";
+    state.ollamaModel = $("ollamaModel").value.trim() || "llama3.1:8b";
+    state.ollamaTemperature = $("ollamaTemperature").value.trim();
+    localStorage.setItem("ai_provider", state.provider);
+    localStorage.setItem("ollama_base_url", state.ollamaBaseUrl);
+    localStorage.setItem("ollama_model", state.ollamaModel);
+    localStorage.setItem("ollama_temperature", state.ollamaTemperature);
     refreshApiUI();
     saveProjectToLocal();
   });
@@ -347,7 +430,7 @@ Liefere:
     button.disabled = true;
 
     try {
-      const out = await callOpenAI(prompt);
+      const out = await callTextModel(prompt);
       target.value = (out || "").trim();
       if (!target.value) {
         target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
@@ -369,7 +452,7 @@ Liefere:
     const list = $("titleOptions");
     list.innerHTML = "<li>Generiere...</li>";
     try {
-      const out = await callOpenAI(prompt);
+      const out = await callTextModel(prompt);
       state.titles = out
         .split("\n")
         .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
@@ -434,7 +517,7 @@ Liefere:
     };
     $("personaResult").value = "Generiere...";
     try {
-      const out = await callOpenAI(
+      const out = await callTextModel(
         `Erzeuge eine detaillierte Author Persona für ein Sachbuchprojekt:\n${JSON.stringify(input, null, 2)}\n
 Struktur: Stimme, Ton, Perspektive, Satzlänge, Story-Muster, Do/Don't-Regeln.`,
       );
@@ -460,7 +543,7 @@ Marktanalyse: ${$("marketAnalysis").value}
 Tags: ${$("focusTags").value}`;
     $("proposedBook").value = "Generiere...";
     try {
-      const out = await callOpenAI(prompt);
+      const out = await callTextModel(prompt);
       state.proposedBook = out;
       $("proposedBook").value = out;
       saveProjectToLocal();
@@ -499,7 +582,7 @@ Input:\n${JSON.stringify(spec, null, 2)}`;
 
     $("outline").value = "Generiere JSON...";
     try {
-      const out = await callOpenAI(prompt, { system, json: true });
+      const out = await callTextModel(prompt, { system, json: true });
       const jsonText = extractFirstJsonObject(out);
       if (!jsonText) {
         throw new Error("Outline konnte nicht als gültiges JSON gelesen werden. Bitte erneut versuchen.");
@@ -550,7 +633,7 @@ Ressourcen:\n${resourceContext}`;
 
     $("currentSection").value = "Generiere...";
     try {
-      const out = await callOpenAI(prompt);
+      const out = await callTextModel(prompt);
       $("currentSection").value = out;
       if (isRewrite) {
         state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`;
@@ -591,7 +674,7 @@ Ressourcen:\n${resourceContext}`;
       if (!txt) return;
       $("editorOutput").value = "Generiere...";
       try {
-        const out = await callOpenAI(`${editPrompts[btn.dataset.edit]}\n\nText:\n${txt}`);
+        const out = await callTextModel(`${editPrompts[btn.dataset.edit]}\n\nText:\n${txt}`);
         $("editorOutput").value = out;
       } catch (e) {
         $("editorOutput").value = e.message;
@@ -605,7 +688,7 @@ Ressourcen:\n${resourceContext}`;
     if (!txt || !custom) return;
     $("editorOutput").value = "Generiere...";
     try {
-      const out = await callOpenAI(`${custom}\n\nText:\n${txt}`);
+      const out = await callTextModel(`${custom}\n\nText:\n${txt}`);
       $("editorOutput").value = out;
     } catch (e) {
       $("editorOutput").value = e.message;
@@ -649,7 +732,7 @@ Manuskript Auszug:\n${state.manuscriptSections.join("\n\n").slice(0, 8000)}`;
 
     $("bookDescription").value = "Generiere...";
     try {
-      const out = await callOpenAI(prompt);
+      const out = await callTextModel(prompt);
       state.description = out;
       $("bookDescription").value = out;
       saveProjectToLocal();

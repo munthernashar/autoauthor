@@ -14,21 +14,46 @@
 
     <main>
       <section class="card api-card">
-        <h2>1) OpenAI Verbindung</h2>
-        <p>Dein API-Key bleibt nur in deinem Browser (localStorage).</p>
+        <h2>1) KI Verbindung</h2>
         <div class="row">
-          <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
-          <button id="saveApiKey">API-Key speichern</button>
-          <button id="clearApiKey" class="secondary">Löschen</button>
-        </div>
-        <div class="row">
-          <label>Textmodell:
-            <input id="textModel" value="gpt-4.1-mini" />
-          </label>
-          <label>Bildmodell:
-            <input id="imageModel" value="gpt-image-1" />
+          <label>Provider:
+            <select id="provider">
+              <option value="openai">OpenAI</option>
+              <option value="ollama">Ollama (lokal)</option>
+            </select>
           </label>
         </div>
+
+        <div id="openaiConfig">
+          <p>OpenAI: Dein API-Key bleibt nur in deinem Browser (localStorage).</p>
+          <div class="row">
+            <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+            <button id="saveApiKey">Verbindung speichern</button>
+            <button id="clearApiKey" class="secondary">Löschen</button>
+          </div>
+          <div class="row">
+            <label>Textmodell:
+              <input id="textModel" value="gpt-4.1-mini" />
+            </label>
+            <label>Bildmodell:
+              <input id="imageModel" value="gpt-image-1" />
+            </label>
+          </div>
+        </div>
+
+        <div id="ollamaConfig">
+          <p>Ollama lokal: Gib URL + Modell ein (z. B. `http://localhost:11434`, `llama3.1:8b`).</p>
+          <div class="grid two">
+            <label>Ollama Base URL<input id="ollamaBaseUrl" value="http://localhost:11434" /></label>
+            <label>Ollama Modell<input id="ollamaModel" value="llama3.1:8b" /></label>
+            <label>Temperatur (optional)<input id="ollamaTemperature" type="number" step="0.1" placeholder="0.7" /></label>
+          </div>
+          <div class="row">
+            <button id="saveOllama" type="button">Verbindung speichern</button>
+          </div>
+          <small>Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.</small>
+        </div>
+
         <p id="apiStatus" class="status"></p>
       </section>
 

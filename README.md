@@ -19,6 +19,7 @@ Eine **rein statische** Web-App (HTML/CSS/JS), die den Coauthor-ähnlichen Buch-
 - Keine Server-Komponenten
 - Nur statische Dateien: `index.html`, `style.css`, `app.js`
 - OpenAI API wird direkt aus dem Browser aufgerufen
+- Optionaler lokaler Ollama-Provider (direkter Browser-Aufruf auf lokale Ollama-Instanz)
 - Projektzustand lokal in `localStorage` + JSON Import/Export
 
 > Wichtig: API-Key wird im Browser gespeichert. Für Produktion sollte ein Backend-Protect/Proxy genutzt werden; für reine GitHub Pages bleibt es clientseitig.
@@ -40,11 +41,22 @@ Dann im Browser öffnen: `http://localhost:4173`
 5. Speichern.
 6. Nach Build ist die App unter der GitHub-Pages-URL erreichbar.
 
-## OpenAI Setup
+## Provider Setup (OpenAI oder Ollama)
+
+### OpenAI
 
 1. OpenAI API-Key erstellen.
-2. In der App im Block „OpenAI Verbindung“ einfügen.
-3. Modell(e) anpassen (Text/Bild), speichern.
+2. In der App Provider `OpenAI` wählen.
+3. API-Key + Modell(e) setzen und speichern.
+
+### Ollama (lokal)
+
+1. Ollama lokal starten (Standard: `http://localhost:11434`).
+2. In der App Provider `Ollama (lokal)` wählen.
+3. Base URL + Modell (z. B. `llama3.1:8b`) setzen und speichern.
+4. Optional Temperatur setzen.
+
+> Hinweis: Bild-/Cover-Generierung ist aktuell nur mit OpenAI verfügbar.
 
 ## Best Practice fürs Buchschreiben
 

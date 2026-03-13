@@ -29,7 +29,7 @@ main {
 }
 h1, h2 { margin-top: 0; }
 p, label, small { color: var(--muted); }
-input, textarea, button {
+input, textarea, button, select {
   width: 100%;
   border-radius: 10px;
   border: 1px solid #394777;
