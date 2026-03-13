@@ -42,6 +42,50 @@ function loadProjectFromLocal() {
   }
 }
 
+function extractTextFromResponse(data) {
+  if (typeof data?.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  const chunks = [];
+
+  // Primary: official Responses shape (assistant message -> content parts)
+  for (const item of data?.output || []) {
+    for (const part of item?.content || []) {
+      if (part?.type === "output_text") {
+        if (typeof part?.text === "string") chunks.push(part.text);
+        else if (typeof part?.text?.value === "string") chunks.push(part.text.value);
+      }
+      if (part?.type === "text") {
+        if (typeof part?.text === "string") chunks.push(part.text);
+        else if (typeof part?.text?.value === "string") chunks.push(part.text.value);
+      }
+    }
+  }
+
+  // Secondary fallback: tolerate variant payloads by recursively looking for useful text.
+  const seen = new Set();
+  const walk = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (seen.has(node)) return;
+    seen.add(node);
+
+    if (typeof node.value === "string" && node.value.trim() && node.type === "output_text") {
+      chunks.push(node.value);
+    }
+    if (typeof node.text === "string" && node.text.trim() && (node.type === "output_text" || node.type === "text")) {
+      chunks.push(node.text);
+    }
+
+    for (const value of Object.values(node)) {
+      if (value && typeof value === "object") walk(value);
+    }
+  };
+  walk(data);
+
+  return chunks.join("\n").trim();
+}
+
 async function callOpenAI(prompt, { system = "", json = false } = {}) {
   if (!state.apiKey) throw new Error("Bitte API-Key setzen.");
   const body = {
@@ -67,27 +111,8 @@ async function callOpenAI(prompt, { system = "", json = false } = {}) {
     throw new Error(`OpenAI Fehler: ${res.status} ${msg}`);
   }
   const data = await res.json();
-
-  // `output_text` is not guaranteed across all model/response combinations.
-  // Fallback to extracting text chunks from output[].content[] to avoid empty UI.
-  if (typeof data.output_text === "string" && data.output_text.trim()) {
-    return data.output_text;
-  }
-
-  const textChunks = [];
-  for (const item of data.output || []) {
-    for (const part of item.content || []) {
-      if (part?.type === "output_text" && typeof part?.text === "string") {
-        textChunks.push(part.text);
-      }
-      if (part?.type === "text" && typeof part?.text === "string") {
-        textChunks.push(part.text);
-      }
-    }
-  }
-
-  const fallbackText = textChunks.join("\n").trim();
-  if (fallbackText) return fallbackText;
+  const text = extractTextFromResponse(data);
+  if (text) return text;
 
   throw new Error("OpenAI hat geantwortet, aber ohne auslesbaren Textinhalt.");
 }
@@ -249,21 +274,33 @@ function bindEvents() {
     readResearchForm();
     const prompt = `Erstelle eine präzise Marktanalyse für ein Non-Fiction Buchprojekt.
 
-Projekt:\n${JSON.stringify(state.research, null, 2)}
+Projekt:
+${JSON.stringify(state.research, null, 2)}
 
-Wettbewerber:\n${JSON.stringify(state.competitors, null, 2)}
+Wettbewerber:
+${JSON.stringify(state.competitors, null, 2)}
 
 Liefere:
 1) Wettbewerbs-Muster
 2) Lücken/Chancen
 3) Differenzierungsstrategie
 4) 7 klare USP-Ideen`;
-    $("marketAnalysis").value = "Generiere...";
+
+    const target = $("marketAnalysis");
+    const button = $("analyzeMarket");
+    target.value = "Generiere...";
+    button.disabled = true;
+
     try {
       const out = await callOpenAI(prompt);
-      $("marketAnalysis").value = out;
+      target.value = (out || "").trim();
+      if (!target.value) {
+        target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+      }
     } catch (e) {
-      $("marketAnalysis").value = e.message;
+      target.value = e.message;
+    } finally {
+      button.disabled = false;
     }
   });
 
