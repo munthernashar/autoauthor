@@ -1419,6 +1419,8 @@ Regeln:
   genreInstructions: getGenrePromptInstructions(state.research.genre),
   persona: state.persona,
   proposedBook: $("proposedBook").value,
+  marketGapStrategy: state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "",
+  finalMarketAnalysis: state.marketResearch?.finalMarketAnalysis || $("marketAnalysis").value || "",
   resources: state.resources.slice(0, 30),
 };
 
@@ -1446,12 +1448,21 @@ Anforderungen:
 - Nicht repetitiv
 - Handlungsorientiert, wenn das Genre dazu passt
 - Struktur, Dramaturgie und Abschnittstypen müssen zum Genre passen
-- Die Outline muss das Strategie-Briefing klar widerspiegeln
+- Die Outline muss das Strategie-Briefing, das Proposed Book und die Marktpositionierung klar widerspiegeln
+- Die Outline muss die erkannte Market Gap / USP Strategy sichtbar in die Buchstruktur übersetzen
 - Keine generische Standard-Non-Fiction-Struktur, wenn sie nicht zum Genre passt
 - Kapitel und Sektionen sollen logisch aufeinander aufbauen
+- Jedes Kapitel soll eine klare strategische Funktion haben
+- Die Kapitel sollen zusammen die Reader Transformation systematisch ermöglichen
 - Die Summe aller Kapitel soll ungefähr dem Gesamtziel aus Input.targetWords entsprechen
 - Die Wortverteilung soll sinnvoll auf Input.chapterCount und die Dramaturgie des Buchs verteilt werden
 - targetWords in Kapiteln und Sektionen müssen als Zahlen ausgegeben werden
+
+Zusätzliche Regeln:
+- Die Buchstruktur soll die Marktchance besetzen, die in Input.marketGapStrategy beschrieben ist
+- Die Outline soll klar differenzieren, nicht nur Standardwissen wiederholen
+- Die Kapitel sollen so aufgebaut sein, dass sie später starke, nicht generische Buchsektionen ermöglichen
+- Vermeide austauschbare Kapitel wie "Einführung", "Grundlagen", "Fazit", wenn sie nicht wirklich strategisch nötig sind
 
 Input:
 ${JSON.stringify(spec, null, 2)}`;
