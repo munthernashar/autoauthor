@@ -12,8 +12,10 @@ const state = {
 researchStrategy: "",
 competitors: [],
 marketResearch: {
-  competitorBreakdowns: [],
+  competitorBreakdown: "",
   patternAnalysis: "",
+  marketGapStrategy: "",
+  competitorBreakdowns: [],
   marketGapAnalysis: "",
   uspStrategy: "",
 },
@@ -1170,6 +1172,9 @@ Regeln:
     $("personaResult").value = state.persona || "";
     $("proposedBook").value = state.proposedBook || "";
     $("researchStrategy").value = state.researchStrategy || "";
+    $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
+    $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
+    $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
     $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
     refreshWritingView();
     renderImages();
@@ -1197,6 +1202,9 @@ function init() {
   $("personaResult").value = state.persona || "";
   $("proposedBook").value = state.proposedBook || "";
   $("researchStrategy").value = state.researchStrategy || "";
+  $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
+  $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
+  $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
   $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
   $("bookDescription").value = state.description || "";
   refreshWritingView();
