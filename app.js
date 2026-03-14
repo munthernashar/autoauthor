@@ -1301,52 +1301,107 @@ Regeln:
   }
 });
 
- $("generateProposedBook").addEventListener("click", async () => {
+$("generateProposedBook").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const prompt = `Erstelle ein "Proposed Book" für dieses Buchprojekt.
+  const patternAnalysis =
+    state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
 
-Projekt:
+  const marketGapStrategy =
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "";
+
+  const finalMarketAnalysis =
+    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis").value || "";
+
+  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
+
+Aufgabe:
+Erstelle ein starkes "Proposed Book Concept" für dieses neue Buchprojekt.
+Das Ergebnis soll das strategische Fundament für Titel, Outline und spätere Kapitel bilden.
+
+PROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
-Strategie-Briefing:
+RESEARCH-STRATEGIE:
 ${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Genre:
+GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
-Persona:
-${state.persona}
+PERSONA:
+${state.persona || "Keine Persona vorhanden."}
 
-Marktanalyse:
-${$("marketAnalysis").value}
+PATTERN ANALYSIS:
+${patternAnalysis || "Keine Pattern Analysis vorhanden."}
 
-Tags:
-${$("focusTags").value}
+MARKET GAP + USP STRATEGY:
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
 
-Liefere:
-1. Unique Selling Point
-2. Marktpositionierung
-3. Key Selling Points
-4. Zielgruppe
-5. Tonalität
-6. Kernaussage des Buchs
-7. Warum dieses Buch in diesem Markt relevant ist
+FINALE MARKTANALYSE:
+${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
+
+FOCUS TAGS:
+${$("focusTags").value || ""}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Proposed Book Concept
+
+## Core Idea
+- Was ist die zentrale Idee des Buchs?
+
+## Target Audience
+- Für wen ist das Buch konkret gedacht?
+
+## Reader Problem
+- Welches Kernproblem löst das Buch?
+
+## Reader Transformation
+- Was soll sich für den Leser nach dem Buch verändern?
+
+## Central Promise
+- Welches zentrale Versprechen gibt das Buch?
+
+## Unique Selling Proposition
+- Was ist die klare USP des Buchs?
+
+## Positioning Statement
+- Wie sollte das Buch im Markt positioniert werden?
+
+## Core Framework or Approach
+- Welcher Ansatz, welches Modell oder welche Denklogik trägt das Buch?
+
+## Why This Book Will Sell
+- Warum hat dieses Buch eine echte Marktchance?
+
+## Key Differentiators
+- Was unterscheidet es klar von den Wettbewerbern?
+
+## Key Selling Points
+- Formuliere 5 bis 7 konkrete Selling Points.
 
 Regeln:
-- Passe Struktur, Nutzenversprechen und Ton an das Genre an.
-- Arbeite konkret und differenzierend.
-- Vermeide generische Standardformulierungen.`;
+- Baue direkt auf Marktanalyse, Pattern Analysis und Market Gap Strategy auf.
+- Vermeide generische Standardformulierungen.
+- Schreibe konkret, marktfähig und differenzierend.
+- Die Positionierung muss zum Genre passen.
+- Das Ergebnis soll direkt als Grundlage für Titel, Outline und Writing dienen.`;
 
   $("proposedBook").value = "Generiere...";
+
   try {
     const out = await callTextModel(prompt);
     state.proposedBook = out;
     $("proposedBook").value = out;
     saveProjectToLocal();
+
+    if (!out || !out.trim()) {
+      $("proposedBook").value =
+        "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
   } catch (e) {
     $("proposedBook").value = e.message;
   }
