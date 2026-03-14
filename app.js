@@ -8,10 +8,16 @@ const state = {
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
-  research: {},
-  researchStrategy: "",
-  competitors: [],
-  resources: [],
+ research: {},
+researchStrategy: "",
+competitors: [],
+marketResearch: {
+  competitorBreakdowns: [],
+  patternAnalysis: "",
+  marketGapAnalysis: "",
+  uspStrategy: "",
+},
+resources: [],
   titles: [],
   persona: "",
   proposedBook: "",
@@ -241,11 +247,22 @@ function fillResearchForm() {
 function renderCompetitors() {
   const list = $("competitorList");
   list.innerHTML = "";
+
   state.competitors.forEach((c, i) => {
     const li = document.createElement("li");
-    li.innerHTML = `${c.title}${c.url ? ` – <a href="${c.url}" target="_blank">Link</a>` : ""} <button data-del="${i}">Entfernen</button>`;
+    li.innerHTML = `
+      <strong>${c.title || "Ohne Titel"}</strong>
+      ${c.subtitle ? `<br /><small>Untertitel: ${c.subtitle}</small>` : ""}
+      ${c.author ? `<br /><small>Autor: ${c.author}</small>` : ""}
+      ${c.category ? `<br /><small>Kategorie: ${c.category}</small>` : ""}
+      ${c.corePromiseGuess ? `<br /><small>Versprechen: ${c.corePromiseGuess}</small>` : ""}
+      ${c.differentiationGuess ? `<br /><small>Differenzierung: ${c.differentiationGuess}</small>` : ""}
+      ${c.url ? `<br /><a href="${c.url}" target="_blank">Link öffnen</a>` : ""}
+      <br /><button data-del="${i}">Entfernen</button>
+    `;
     list.appendChild(li);
   });
+
   list.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.competitors.splice(Number(btn.dataset.del), 1);
@@ -519,48 +536,144 @@ Regeln:
   }
 });
 
-  $("addCompetitor").addEventListener("click", () => {
-    const title = $("competitorTitle").value.trim();
-    const url = $("competitorUrl").value.trim();
-    if (!title) return;
-    state.competitors.push({ title, url });
-    $("competitorTitle").value = "";
-    $("competitorUrl").value = "";
-    renderCompetitors();
-    saveProjectToLocal();
-  });
+ $("addCompetitor").addEventListener("click", () => {
+  const competitor = {
+    title: $("competitorTitle").value.trim(),
+    author: $("competitorAuthor").value.trim(),
+    subtitle: $("competitorSubtitle").value.trim(),
+    url: $("competitorUrl").value.trim(),
+    category: $("competitorCategory").value.trim(),
+    description: $("competitorDescription").value.trim(),
+    targetAudienceGuess: $("competitorTargetAudienceGuess").value.trim(),
+    corePromiseGuess: $("competitorCorePromiseGuess").value.trim(),
+    differentiationGuess: $("competitorDifferentiationGuess").value.trim(),
+    notes: $("competitorNotes").value.trim(),
+    reviewCount: $("competitorReviewCount").value.trim(),
+    rating: $("competitorRating").value.trim(),
+    bestsellerRankOrSignal: $("competitorBestsellerSignal").value.trim(),
+    keywords: $("competitorKeywords").value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    tableOfContentsNotes: $("competitorTableOfContentsNotes").value.trim(),
+    toneGuess: $("competitorToneGuess").value.trim(),
+    structureGuess: $("competitorStructureGuess").value.trim(),
+    keySellingPointsGuess: $("competitorKeySellingPointsGuess").value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    readerPainGuess: $("competitorReaderPainGuess").value.trim(),
+    readerOutcomeGuess: $("competitorReaderOutcomeGuess").value.trim(),
+    source: "manual",
+  };
 
- $("analyzeMarket").addEventListener("click", async () => {
+  if (!competitor.title) return;
+
+  state.competitors.push(competitor);
+
+  $("competitorTitle").value = "";
+  $("competitorAuthor").value = "";
+  $("competitorSubtitle").value = "";
+  $("competitorUrl").value = "";
+  $("competitorCategory").value = "";
+  $("competitorDescription").value = "";
+  $("competitorTargetAudienceGuess").value = "";
+  $("competitorCorePromiseGuess").value = "";
+  $("competitorDifferentiationGuess").value = "";
+  $("competitorNotes").value = "";
+  $("competitorReviewCount").value = "";
+  $("competitorRating").value = "";
+  $("competitorBestsellerSignal").value = "";
+  $("competitorKeywords").value = "";
+  $("competitorTableOfContentsNotes").value = "";
+  $("competitorToneGuess").value = "";
+  $("competitorStructureGuess").value = "";
+  $("competitorKeySellingPointsGuess").value = "";
+  $("competitorReaderPainGuess").value = "";
+  $("competitorReaderOutcomeGuess").value = "";
+
+  renderCompetitors();
+  saveProjectToLocal();
+});
+
+$("analyzeMarket").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const prompt = `Erstelle eine präzise Marktanalyse für dieses Buchprojekt.
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst und Positionierungsstratege.
 
-Projekt:
+Aufgabe:
+Analysiere die folgenden manuell recherchierten Wettbewerbsbücher und entwickle daraus
+eine vollständige Marktanalyse für das neue Buchprojekt.
+
+NEUES BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
-Strategie-Briefing:
+RESEARCH-STRATEGIE:
 ${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Genre:
+GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
-Wettbewerber:
+WETTBEWERBSBÜCHER:
 ${JSON.stringify(state.competitors, null, 2)}
 
-Liefere:
-1) Dominante Muster im Markt
-2) Übernutzte Perspektiven oder Standardansätze
-3) Lücken / Chancen
-4) Differenzierungsstrategie
-5) 7 klare USP-Ideen
+WICHTIG:
+- Nutze ausschließlich die gelieferten Wettbewerbsdaten.
+- Analysiere Strategie, Positionierung, Muster und Lücken.
+- Kopiere keine Texte.
+- Wenn Daten unklar oder dünn sind, markiere Unsicherheiten offen.
+
+Liefere die Analyse in dieser Struktur:
+
+1. Competitive Landscape
+- Wie sieht der Markt insgesamt aus?
+- Welche Arten von Büchern dominieren?
+- Welche Positionierungen sind sichtbar?
+
+2. Competitor Breakdown
+- Analysiere jedes Wettbewerbsbuch einzeln:
+  - Core concept
+  - Target audience
+  - Core promise
+  - Tone
+  - Structure
+  - Differentiation
+  - Likely reason it sells
+
+3. Pattern Extraction
+- Welche Muster wiederholen sich über die Bücher hinweg?
+- Welche Versprechen, Töne, Strukturen und Positionierungen dominieren?
+
+4. Overused Angles
+- Welche Perspektiven wirken austauschbar oder übernutzt?
+
+5. Market Gap
+- Welche Lücken oder Chancen sind im Markt sichtbar?
+- Was fehlt für Leser aktuell?
+
+6. Positioning Strategy for the New Book
+- Wie sollte das neue Buch positioniert werden?
+- Welche Marktchance ist am stärksten?
+
+7. Unique Selling Proposition
+- Formuliere eine klare USP für das neue Buch.
+
+8. Competitive Strategy
+- Was sollte vom Markt gelernt / übernommen werden?
+- Was sollte bewusst vermieden werden?
+- Was sollte neu oder anders gemacht werden?
+
+9. Key Selling Points
+- Formuliere 5 bis 7 konkrete Key Selling Points für Marketing und Positionierung.
 
 Regeln:
-- Passe die Analyse an das Genre an.
-- Vermeide generische Non-Fiction-Sprache, wenn sie nicht zum Genre passt.
-- Erfinde keine Marktbelege, die nicht aus dem Input ableitbar sind.`;
+- Passe die Analyse konsequent an das Genre an.
+- Arbeite konkret statt generisch.
+- Keine erfundenen Bestseller-Fakten.
+- Wenn wenige Wettbewerbsdaten vorliegen, mache das transparent.`;
 
   const target = $("marketAnalysis");
   const button = $("analyzeMarket");
@@ -570,9 +683,19 @@ Regeln:
   try {
     const out = await callTextModel(prompt);
     target.value = (out || "").trim();
+
+    state.marketResearch = {
+      competitorBreakdowns: [],
+      patternAnalysis: "",
+      marketGapAnalysis: "",
+      uspStrategy: target.value,
+    };
+
     if (!target.value) {
       target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
     }
+
+    saveProjectToLocal();
   } catch (e) {
     target.value = e.message;
   } finally {
