@@ -9,6 +9,7 @@ const state = {
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
   research: {},
+  researchStrategy: "",
   competitors: [],
   resources: [],
   titles: [],
@@ -299,7 +300,6 @@ function parseOutlineToFlatSections(outlineObj) {
   return flat;
 }
 
-
 function extractFirstJsonObject(text) {
   if (typeof text !== "string") return "";
   const trimmed = text.trim();
@@ -350,6 +350,78 @@ function extractFirstJsonObject(text) {
 
   return "";
 }
+function getGenrePromptInstructions(genre = "") {
+  const g = (genre || "").trim().toLowerCase();
+
+  if (g === "kinderbuch") {
+    return `Genre-Regeln:
+- Fokus auf einfache, klare, kindgerechte Sprache.
+- Emotion, Moral und Verständlichkeit sind wichtiger als Komplexität.
+- Die Inhalte sollen gut vorlesbar oder leicht selbst lesbar sein.
+- Zielgruppe sind Kinder; oft lesen Eltern oder Lehrkräfte mit.
+- Klare Handlung, klare Botschaft, keine unnötige Abstraktion.`;
+  }
+
+  if (g === "roman / fiction") {
+    return `Genre-Regeln:
+- Fokus auf Handlung, Konflikt, Dramaturgie und Figurenentwicklung.
+- Zeigen statt erklären.
+- Spannung, emotionale Entwicklung und Szenen sind zentral.
+- Keine typische Ratgeber- oder Fachbuchsprache.`;
+  }
+
+  if (g === "self-help") {
+    return `Genre-Regeln:
+- Fokus auf Leserproblem, Lesertransformation und praktische Umsetzbarkeit.
+- Konkrete Erkenntnisse, klare Schritte, starke Lesernähe.
+- Motivierend, aber nicht oberflächlich oder floskelhaft.
+- Keine generische Standard-Ratgeber-Sprache ohne Substanz.`;
+  }
+
+  if (g === "business") {
+    return `Genre-Regeln:
+- Fokus auf strategischen Nutzen, Klarheit und Autorität.
+- Strukturierte Argumentation, praxisnahe Beispiele, klare Konzepte.
+- Modelle, Frameworks und Entscheidungslogik bevorzugen.
+- Keine vage oder esoterische Sprache.`;
+  }
+
+  if (g === "fachbuch") {
+    return `Genre-Regeln:
+- Fokus auf Präzision, Struktur, Genauigkeit und didaktische Klarheit.
+- Begriffe sauber definieren.
+- Wissen systematisch und nachvollziehbar aufbauen.
+- Keine unnötige Ausschmückung oder emotionale Überdramatisierung.`;
+  }
+
+  if (g === "religion / spiritualität") {
+    return `Genre-Regeln:
+- Respektvolle, würdevolle und sensible Sprache.
+- Fokus auf Werte, Sinn, spirituelle Entwicklung und moralische Orientierung.
+- Keine flapsige, zynische oder unpassend verkaufsorientierte Sprache.
+- Inhalt soll glaubens- und werteorientiert konsistent bleiben.`;
+  }
+
+  if (g === "ratgeber / lifestyle") {
+    return `Genre-Regeln:
+- Fokus auf praktischen Nutzen, Alltagstauglichkeit und Motivation.
+- Konkrete Tipps, leicht verständliche Sprache, anschauliche Beispiele.
+- Leser sollen schnell erkennen, wie sie Inhalte anwenden können.
+- Keine unnötig abstrakte oder akademische Sprache.`;
+  }
+
+  if (g === "biografie") {
+    return `Genre-Regeln:
+- Fokus auf persönliche Entwicklung, Erfahrungen und authentische Stimme.
+- Ereignisse sollen erzählerisch und nachvollziehbar verbunden sein.
+- Ehrlichkeit, Perspektive und emotionale Tiefe sind wichtig.
+- Keine generische Ratgeber- oder Fachsprache, wenn sie nicht passt.`;
+  }
+
+  return `Genre-Regeln:
+- Passe Stil, Struktur, Sprache und Zielsetzung sauber an das angegebene Genre an.
+- Vermeide generische Standard-Non-Fiction-Sprache, wenn sie nicht zum Genre passt.`;
+}
 
 function bindEvents() {
   $("provider").addEventListener("change", () => {
@@ -396,6 +468,56 @@ function bindEvents() {
     saveProjectToLocal();
     alert("Research gespeichert");
   });
+  
+  $("generateResearchStrategy").addEventListener("click", async () => {
+  readResearchForm();
+
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Du bist ein erfahrener Buch-Strategieeditor.
+
+Analysiere den folgenden Buchprojekt-Input und erstelle ein strategisches Briefing, das als Grundlage für alle weiteren Buchschritte dient.
+
+Projektinput:
+${JSON.stringify(state.research, null, 2)}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Erstelle ein strategisches Briefing mit:
+
+1. Kernthema des Buchs
+2. Zielgruppe
+3. Hauptproblem des Lesers
+4. Hauptwunsch des Lesers
+5. Zentrales Versprechen des Buchs
+6. Einzigartiger Ansatz
+7. Marktpositionierung
+8. Tonalität und Stimme
+9. Glaubwürdigkeitsanker
+10. Erwartete Transformation des Lesers
+11. Offene Unklarheiten oder strategische Lücken
+
+Regeln:
+- Passe deine Analyse konsequent an das Genre an.
+- Schreibe konkret, nicht generisch.
+- Erfinde keine harten Fakten.
+- Wenn etwas unklar ist, markiere es als Annahme oder Lücke.
+- Schreibe so, dass der Text direkt in Folgeprompts weiterverwendet werden kann.`;
+
+  $("researchStrategy").value = "Generiere...";
+
+  try {
+    const out = await callTextModel(prompt);
+    state.researchStrategy = out;
+    $("researchStrategy").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("researchStrategy").value = e.message;
+  }
+});
 
   $("addCompetitor").addEventListener("click", () => {
     const title = $("competitorTitle").value.trim();
@@ -408,72 +530,104 @@ function bindEvents() {
     saveProjectToLocal();
   });
 
-  $("analyzeMarket").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Erstelle eine präzise Marktanalyse für ein Non-Fiction Buchprojekt.
+ $("analyzeMarket").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Erstelle eine präzise Marktanalyse für dieses Buchprojekt.
 
 Projekt:
 ${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
 
 Wettbewerber:
 ${JSON.stringify(state.competitors, null, 2)}
 
 Liefere:
-1) Wettbewerbs-Muster
-2) Lücken/Chancen
-3) Differenzierungsstrategie
-4) 7 klare USP-Ideen`;
+1) Dominante Muster im Markt
+2) Übernutzte Perspektiven oder Standardansätze
+3) Lücken / Chancen
+4) Differenzierungsstrategie
+5) 7 klare USP-Ideen
 
-    const target = $("marketAnalysis");
-    const button = $("analyzeMarket");
-    target.value = "Generiere...";
-    button.disabled = true;
+Regeln:
+- Passe die Analyse an das Genre an.
+- Vermeide generische Non-Fiction-Sprache, wenn sie nicht zum Genre passt.
+- Erfinde keine Marktbelege, die nicht aus dem Input ableitbar sind.`;
 
-    try {
-      const out = await callTextModel(prompt);
-      target.value = (out || "").trim();
-      if (!target.value) {
-        target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-      }
-    } catch (e) {
-      target.value = e.message;
-    } finally {
-      button.disabled = false;
+  const target = $("marketAnalysis");
+  const button = $("analyzeMarket");
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
     }
-  });
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 
   $("generateTitles").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Generiere 10 prägnante Buchtitel für dieses Projekt, jeweils in einer neuen Zeile ohne Nummerierung:\n${JSON.stringify(
-      state.research,
-      null,
-      2,
-    )}`;
-    const list = $("titleOptions");
-    list.innerHTML = "<li>Generiere...</li>";
-    try {
-      const out = await callTextModel(prompt);
-      state.titles = out
-        .split("\n")
-        .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
-        .filter(Boolean)
-        .slice(0, 10);
-      list.innerHTML = "";
-      state.titles.forEach((t) => {
-        const li = document.createElement("li");
-        li.textContent = t;
-        li.addEventListener("click", () => {
-          $("bookTitle").value = t;
-          readResearchForm();
-          saveProjectToLocal();
-        });
-        list.appendChild(li);
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Generiere 10 prägnante Buchtitel für dieses Projekt, jeweils in einer neuen Zeile ohne Nummerierung.
+
+Projekt:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Regeln:
+- Die Titel müssen zum Genre passen.
+- Sie sollen merkfähig und nicht generisch sein.
+- Sie sollen das zentrale Versprechen, den Kernkonflikt oder den inhaltlichen Kern des Buchs andeuten.
+- Keine Nummerierung, keine Erklärungen, nur Titelzeilen.`;
+
+  const list = $("titleOptions");
+  list.innerHTML = "<li>Generiere...</li>";
+  try {
+    const out = await callTextModel(prompt);
+    state.titles = out
+      .split("\n")
+      .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    list.innerHTML = "";
+    state.titles.forEach((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      li.addEventListener("click", () => {
+        $("bookTitle").value = t;
+        readResearchForm();
+        saveProjectToLocal();
       });
-      saveProjectToLocal();
-    } catch (e) {
-      list.innerHTML = `<li>${e.message}</li>`;
-    }
-  });
+      list.appendChild(li);
+    });
+    saveProjectToLocal();
+  } catch (e) {
+    list.innerHTML = `<li>${e.message}</li>`;
+  }
+});
 
   $("addResourceUrl").addEventListener("click", () => {
     const url = $("resourceUrl").value.trim();
@@ -508,77 +662,142 @@ Liefere:
   });
 
   $("generatePersona").addEventListener("click", async () => {
-    const input = {
-      name: $("personaName").value.trim(),
-      refs: $("personaRefs").value.trim(),
-      background: $("personaBackground").value.trim(),
-      sample: $("writingSample").value.trim(),
-      research: state.research,
-    };
-    $("personaResult").value = "Generiere...";
-    try {
-      const out = await callTextModel(
-        `Erzeuge eine detaillierte Author Persona für ein Sachbuchprojekt:\n${JSON.stringify(input, null, 2)}\n
-Struktur: Stimme, Ton, Perspektive, Satzlänge, Story-Muster, Do/Don't-Regeln.`,
-      );
-      state.persona = out;
-      $("personaResult").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("personaResult").value = e.message;
-    }
-  });
+  const input = {
+    name: $("personaName").value.trim(),
+    refs: $("personaRefs").value.trim(),
+    background: $("personaBackground").value.trim(),
+    sample: $("writingSample").value.trim(),
+    research: state.research,
+    researchStrategy: state.researchStrategy,
+    genre: state.research.genre || "",
+    genreInstructions: getGenrePromptInstructions(state.research.genre),
+  };
 
-  $("generateProposedBook").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Erstelle ein "Proposed Book" inkl. Unique Selling Point, Marktpositionierung, Key Selling Points, Zielgruppe, Tonalität.
+  $("personaResult").value = "Generiere...";
 
-Projekt: ${JSON.stringify(
-      state.research,
-      null,
-      2,
-    )}
-Persona: ${state.persona}
-Marktanalyse: ${$("marketAnalysis").value}
-Tags: ${$("focusTags").value}`;
-    $("proposedBook").value = "Generiere...";
-    try {
-      const out = await callTextModel(prompt);
-      state.proposedBook = out;
-      $("proposedBook").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("proposedBook").value = e.message;
-    }
-  });
+  try {
+    const out = await callTextModel(
+      `Erzeuge eine detaillierte Author Persona für dieses Buchprojekt:\n${JSON.stringify(input, null, 2)}\n
+Struktur:
+- Stimme
+- Ton
+- Perspektive
+- Satzlänge
+- Story-Muster
+- Do/Don't-Regeln
+
+Regeln:
+- Passe die Persona an Genre und strategisches Briefing an.
+- Die Persona soll später als konsistente Schreibgrundlage für Outline und Kapitel dienen.
+- Vermeide generische Standard-Non-Fiction-Stimme, wenn sie nicht zum Genre passt.`,
+    );
+    state.persona = out;
+    $("personaResult").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("personaResult").value = e.message;
+  }
+});
+
+ $("generateProposedBook").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Erstelle ein "Proposed Book" für dieses Buchprojekt.
+
+Projekt:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Persona:
+${state.persona}
+
+Marktanalyse:
+${$("marketAnalysis").value}
+
+Tags:
+${$("focusTags").value}
+
+Liefere:
+1. Unique Selling Point
+2. Marktpositionierung
+3. Key Selling Points
+4. Zielgruppe
+5. Tonalität
+6. Kernaussage des Buchs
+7. Warum dieses Buch in diesem Markt relevant ist
+
+Regeln:
+- Passe Struktur, Nutzenversprechen und Ton an das Genre an.
+- Arbeite konkret und differenzierend.
+- Vermeide generische Standardformulierungen.`;
+
+  $("proposedBook").value = "Generiere...";
+  try {
+    const out = await callTextModel(prompt);
+    state.proposedBook = out;
+    $("proposedBook").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("proposedBook").value = e.message;
+  }
+});
 
   $("generateOutline").addEventListener("click", async () => {
     readResearchForm();
     const spec = {
-      targetWords: Number($("targetWords").value || 25000),
-      chapterCount: Number($("chapterCount").value || 10),
-      structure: $("structure").value.trim(),
-      research: state.research,
-      persona: state.persona,
-      proposedBook: $("proposedBook").value,
-      resources: state.resources.slice(0, 30),
-    };
+  targetWords: Number($("targetWords").value || 25000),
+  chapterCount: Number($("chapterCount").value || 10),
+  structure: $("structure").value.trim(),
+  research: state.research,
+  researchStrategy: state.researchStrategy,
+  genre: state.research.genre || "",
+  genreInstructions: getGenrePromptInstructions(state.research.genre),
+  persona: state.persona,
+  proposedBook: $("proposedBook").value,
+  resources: state.resources.slice(0, 30),
+};
 
-    const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
-    const prompt = `Erstelle ein JSON mit diesem Schema:
+
+const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
+const prompt = `Erstelle ein JSON mit diesem Schema:
 {
   "chapters":[
     {
-      "title":"...",
-      "targetWords":2000,
+      "title":"Kapitel Titel",
+      "targetWords":"<Wörter für dieses Kapitel>",
       "sections":[
-        {"title":"...","targetWords":700,"subsections":["...","..."]}
+        {
+          "title":"Sektion Titel",
+          "targetWords":"<Wörter für diese Sektion>",
+          "subsections":["Unterthema 1","Unterthema 2"]
+        }
       ]
     }
   ]
 }
-Anforderungen: variable Kapitel- und Sektionslängen, nicht repetitiv, handlungsorientiert, für Non-Fiction.
-Input:\n${JSON.stringify(spec, null, 2)}`;
+
+Anforderungen:
+- Variable Kapitel- und Sektionslängen
+- Nicht repetitiv
+- Handlungsorientiert, wenn das Genre dazu passt
+- Struktur, Dramaturgie und Abschnittstypen müssen zum Genre passen
+- Die Outline muss das Strategie-Briefing klar widerspiegeln
+- Keine generische Standard-Non-Fiction-Struktur, wenn sie nicht zum Genre passt
+- Kapitel und Sektionen sollen logisch aufeinander aufbauen
+- Die Summe aller Kapitel soll ungefähr dem Gesamtziel aus Input.targetWords entsprechen
+- Die Wortverteilung soll sinnvoll auf Input.chapterCount und die Dramaturgie des Buchs verteilt werden
+- targetWords in Kapiteln und Sektionen müssen als Zahlen ausgegeben werden
+
+Input:
+${JSON.stringify(spec, null, 2)}`;
 
     $("outline").value = "Generiere JSON...";
     try {
@@ -615,21 +834,44 @@ Input:\n${JSON.stringify(spec, null, 2)}`;
       .join("\n\n")
       .slice(0, 12000);
 
-    const prompt = `Schreibe die nächste Buchsektion in deutscher Sprache.
+    const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+const prompt = `Schreibe die nächste Buchsektion in deutscher Sprache.
 
 Regeln:
-- Non-Fiction, hochwertige Substanz, konkrete Beispiele.
 - Keine Wiederholungen mit vorherigem Text.
-- Nutze Persona und Stance konsequent.
+- Nutze Persona, Stance und Strategie-Briefing konsequent.
 - Länge ungefähr ${sec.targetWords} Wörter.
-- Ende mit kurzer Brücke zur nächsten Sektion.
+- Stil, Struktur und Sprache müssen zum Genre passen.
+- Schreibe substanziell, klar und konkret.
+- Ende mit einer kurzen natürlichen Brücke zur nächsten Sektion, wenn es passt.
 
-Projekt: ${JSON.stringify(state.research, null, 2)}
-Persona:\n${state.persona}
-Subsections: ${sec.subsections.join(", ")}
-Aktuelle Sektion: Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}".
-Vorheriger Text:\n${previous}
-Ressourcen:\n${resourceContext}`;
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Projekt:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Persona:
+${state.persona}
+
+Subsections:
+${sec.subsections.join(", ")}
+
+Aktuelle Sektion:
+Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}"
+
+Vorheriger Text:
+${previous}
+
+Ressourcen:
+${resourceContext}`;
+
 
     $("currentSection").value = "Generiere...";
     try {
@@ -722,24 +964,45 @@ Ressourcen:\n${resourceContext}`;
     }
   });
 
-  $("generateDescription").addEventListener("click", async () => {
-    const prompt = `Erstelle eine verkaufsstarke Buchbeschreibung mit Struktur:
-Headline, Relate, Bullet Benefits, Objection Handling, CTA.
+ $("generateDescription").addEventListener("click", async () => {
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-Buch:\n${JSON.stringify(state.research, null, 2)}
-Proposed Book:\n${state.proposedBook}
-Manuskript Auszug:\n${state.manuscriptSections.join("\n\n").slice(0, 8000)}`;
+  const prompt = `Erstelle eine starke Buchbeschreibung für dieses Projekt.
 
-    $("bookDescription").value = "Generiere...";
-    try {
-      const out = await callTextModel(prompt);
-      state.description = out;
-      $("bookDescription").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("bookDescription").value = e.message;
-    }
-  });
+Buch:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Proposed Book:
+${state.proposedBook}
+
+Manuskript Auszug:
+${state.manuscriptSections.join("\n\n").slice(0, 8000)}
+
+Regeln:
+- Passe Sprache, Ton und Aufbau an das Genre an.
+- Für Self-Help, Business, Fachbuch und Ratgeber darf die Beschreibung klar nutzenorientiert und verkaufsstark sein.
+- Für Kinderbuch, Roman / Fiction, Religion / Spiritualität und Biografie soll die Beschreibung stilistisch passender und weniger wie aggressive Sales-Copy wirken.
+- Keine generischen Phrasen.
+- Arbeite mit klarem Nutzen, klarer Positionierung oder klarem emotionalem Reiz — je nach Genre.`;
+
+  $("bookDescription").value = "Generiere...";
+  try {
+    const out = await callTextModel(prompt);
+    state.description = out;
+    $("bookDescription").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("bookDescription").value = e.message;
+  }
+});
 
   $("downloadMarkdown").addEventListener("click", () => {
     readResearchForm();
@@ -779,6 +1042,7 @@ Manuskript Auszug:\n${state.manuscriptSections.join("\n\n").slice(0, 8000)}`;
     renderResources();
     $("personaResult").value = state.persona || "";
     $("proposedBook").value = state.proposedBook || "";
+    $("researchStrategy").value = state.researchStrategy || "";
     $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
     refreshWritingView();
     renderImages();
@@ -805,6 +1069,7 @@ function init() {
   renderResources();
   $("personaResult").value = state.persona || "";
   $("proposedBook").value = state.proposedBook || "";
+  $("researchStrategy").value = state.researchStrategy || "";
   $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
   $("bookDescription").value = state.description || "";
   refreshWritingView();
