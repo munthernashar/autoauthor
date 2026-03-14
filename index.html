@@ -96,17 +96,84 @@
       </section>
 
       <section class="card">
-        <h2>3) Market Analysis</h2>
-        <p>Füge Wettbewerber-Bücher hinzu und lasse ihre Stärken/Schwächen analysieren.</p>
-        <div class="row">
-          <input id="competitorTitle" placeholder="Buchtitel" />
-          <input id="competitorUrl" placeholder="URL (optional)" />
-          <button id="addCompetitor">Hinzufügen</button>
-        </div>
-        <ul id="competitorList"></ul>
-        <button id="analyzeMarket">Marktanalyse erzeugen</button>
-        <textarea id="marketAnalysis" rows="8" placeholder="Analyse erscheint hier..."></textarea>
-      </section>
+  <h2>3) Market Analysis</h2>
+  <p>
+    Für eine starke Wettbewerbsanalyse recherchiere relevante Vergleichsbücher manuell
+    und trage pro Buch möglichst viele der folgenden Informationen ein.
+  </p>
+
+  <p>
+    <strong>Idealzahl:</strong> 3 bis 7 Wettbewerbsbücher.<br />
+    <strong>Minimum:</strong> Titel, Autor, Untertitel, Kategorie, Beschreibung, zentrales Versprechen,
+    Differenzierungsmerkmal, Notizen.<br />
+    <strong>Je vollständiger die Daten, desto präziser werden Marktanalyse, Gap Detection und USP.</strong>
+  </p>
+
+  <div class="grid two">
+    <label>Titel<input id="competitorTitle" placeholder="Buchtitel" /></label>
+    <label>Autor<input id="competitorAuthor" placeholder="Autor" /></label>
+
+    <label>Untertitel<input id="competitorSubtitle" placeholder="Untertitel" /></label>
+    <label>URL<input id="competitorUrl" placeholder="https://..." /></label>
+
+    <label>Kategorie<input id="competitorCategory" placeholder="z. B. Self-Help, Business, Kinderbuch" /></label>
+    <label>Zielgruppe (vermutet)<input id="competitorTargetAudienceGuess" placeholder="z. B. berufstätige Eltern" /></label>
+
+    <label>Zentrales Versprechen<input id="competitorCorePromiseGuess" placeholder="Was verspricht das Buch?" /></label>
+    <label>Differenzierungsmerkmal<input id="competitorDifferentiationGuess" placeholder="Wodurch unterscheidet es sich?" /></label>
+
+    <label>Tonalität / Stil<input id="competitorToneGuess" placeholder="z. B. praktisch, emotional, akademisch" /></label>
+    <label>Struktur / Aufbau<input id="competitorStructureGuess" placeholder="z. B. Framework, Story, Schritt-für-Schritt" /></label>
+
+    <label>Review-Anzahl<input id="competitorReviewCount" placeholder="z. B. 15432" /></label>
+    <label>Bewertung<input id="competitorRating" placeholder="z. B. 4.7/5" /></label>
+
+    <label>Bestseller-Signal<input id="competitorBestsellerSignal" placeholder="z. B. Amazon Bestseller #3" /></label>
+    <label>Keywords (kommagetrennt)<input id="competitorKeywords" placeholder="z. B. decluttering, habits, minimalism" /></label>
+  </div>
+
+  <label>Beschreibung / Klappentext
+    <textarea id="competitorDescription" rows="5" placeholder="Klappentext oder Produktbeschreibung"></textarea>
+  </label>
+
+  <label>Kapitel-/Inhaltsstruktur (optional)
+    <textarea id="competitorTableOfContentsNotes" rows="4" placeholder="Falls sichtbar: Inhaltsverzeichnis, Kapitelmuster, Aufbau"></textarea>
+  </label>
+
+  <label>Key Selling Points (kommagetrennt, optional)
+    <input id="competitorKeySellingPointsGuess" placeholder="z. B. schnell umsetzbar, alltagstauglich, wissenschaftlich fundiert" />
+  </label>
+
+  <label>Reader Pain (vermutet, optional)
+    <textarea id="competitorReaderPainGuess" rows="3" placeholder="Welches Problem adressiert das Buch?"></textarea>
+  </label>
+
+  <label>Reader Outcome (vermutet, optional)
+    <textarea id="competitorReaderOutcomeGuess" rows="3" placeholder="Was soll der Leser am Ende können / erreichen?"></textarea>
+  </label>
+
+  <label>Freie Notizen
+    <textarea id="competitorNotes" rows="4" placeholder="Eigene Beobachtungen: Was wirkt stark? Was fehlt? Wie ist das Buch positioniert?"></textarea>
+  </label>
+
+  <div class="row wrap">
+    <button id="addCompetitor">Wettbewerbsbuch hinzufügen</button>
+  </div>
+
+  <ul id="competitorList"></ul>
+
+  <p>
+    <strong>Klare Priorisierung:</strong><br />
+    Priorität 1: Titel, Autor, Untertitel, Beschreibung, Kategorie, zentrales Versprechen,
+    Differenzierungsmerkmal, Notizen.<br />
+    Priorität 2: Zielgruppe, Tonalität, Struktur, Keywords.<br />
+    Priorität 3: Bewertungen, Review-Anzahl, Bestseller-Signale, Inhaltsverzeichnis,
+    Selling Points, Reader Pain, Reader Outcome.
+  </p>
+
+  <button id="analyzeMarket">Marktanalyse erzeugen</button>
+  <textarea id="marketAnalysis" rows="18" placeholder="Competitive Landscape, Competitor Breakdown, Pattern Extraction, Market Gap, USP und Positioning erscheinen hier..."></textarea>
+</section>
 
       <section class="card">
         <h2>4) Titelgenerator</h2>
