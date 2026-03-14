@@ -62,7 +62,20 @@
         <div class="grid two">
           <label>Buchtitel (optional)<input id="bookTitle" /></label>
           <label>Autorname / Pen Name<input id="authorName" /></label>
-          <label>Genre<input id="genre" placeholder="Non-Fiction / Self-Help" /></label>
+           <label>Genre
+            <select id="genre">
+            <option value="">Bitte Genre wählen</option>
+            <option value="Kinderbuch">Kinderbuch</option>
+            <option value="Roman / Fiction">Roman / Fiction</option>
+            <option value="Self-Help">Self-Help</option>
+            <option value="Business">Business</option>
+            <option value="Fachbuch">Fachbuch</option>
+            <option value="Religion / Spiritualität">Religion / Spiritualität</option>
+            <option value="Ratgeber / Lifestyle">Ratgeber / Lifestyle</option>
+            <option value="Biografie">Biografie</option>
+            </select>
+           </label>
+
           <label>Hauptthema<input id="topic" /></label>
         </div>
         <label>Stance / Unique Take<textarea id="stance" rows="3"></textarea></label>
