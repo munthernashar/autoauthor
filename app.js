@@ -491,6 +491,82 @@ function bindEvents() {
     saveProjectToLocal();
     alert("Research gespeichert");
   });
+$("analyzeCompetitors").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const target = $("competitorBreakdown");
+  const button = $("analyzeCompetitors");
+
+  if (!state.competitors.length) {
+    target.value = "Bitte zuerst mindestens ein Wettbewerbsbuch hinzufügen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Analysiere die folgenden Wettbewerbsbücher einzeln für ein neues Buchprojekt.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+WETTBEWERBSBÜCHER:
+${JSON.stringify(state.competitors, null, 2)}
+
+WICHTIG:
+- Analysiere jedes Wettbewerbsbuch einzeln.
+- Nutze nur die gelieferten Daten.
+- Erfinde keine Fakten.
+- Wenn Daten dünn sind, markiere Unsicherheiten klar.
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Competitor Breakdown
+
+## [Buchtitel]
+- Core concept:
+- Target audience:
+- Core promise:
+- Tone:
+- Structure:
+- Differentiation:
+- Likely reason it sells:
+- Data confidence:
+
+Wiederhole dieses Format für jedes Wettbewerbsbuch.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      competitorBreakdown: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
   
   $("generateResearchStrategy").addEventListener("click", async () => {
   readResearchForm();
