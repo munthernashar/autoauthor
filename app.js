@@ -8,9 +8,19 @@ const state = {
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
-  research: {},
-  competitors: [],
-  resources: [],
+ research: {},
+researchStrategy: "",
+competitors: [],
+marketResearch: {
+  competitorBreakdown: "",
+  patternAnalysis: "",
+  marketGapStrategy: "",
+  finalMarketAnalysis: "",
+  competitorBreakdowns: [],
+  marketGapAnalysis: "",
+  uspStrategy: "",
+},
+resources: [],
   titles: [],
   persona: "",
   proposedBook: "",
@@ -239,12 +249,27 @@ function fillResearchForm() {
 
 function renderCompetitors() {
   const list = $("competitorList");
+  const count = $("competitorCount");
   list.innerHTML = "";
+
+  const total = state.competitors.length;
+  count.textContent = `Wettbewerbsbücher: ${total} (empfohlen: 3–7)`;
+
   state.competitors.forEach((c, i) => {
     const li = document.createElement("li");
-    li.innerHTML = `${c.title}${c.url ? ` – <a href="${c.url}" target="_blank">Link</a>` : ""} <button data-del="${i}">Entfernen</button>`;
+    li.innerHTML = `
+      <strong>${c.title || "Ohne Titel"}</strong>
+      ${c.subtitle ? `<br /><small>Untertitel: ${c.subtitle}</small>` : ""}
+      ${c.author ? `<br /><small>Autor: ${c.author}</small>` : ""}
+      ${c.category ? `<br /><small>Kategorie: ${c.category}</small>` : ""}
+      ${c.corePromiseGuess ? `<br /><small>Versprechen: ${c.corePromiseGuess}</small>` : ""}
+      ${c.differentiationGuess ? `<br /><small>Differenzierung: ${c.differentiationGuess}</small>` : ""}
+      ${c.url ? `<br /><a href="${c.url}" target="_blank">Link öffnen</a>` : ""}
+      <br /><button data-del="${i}">Entfernen</button>
+    `;
     list.appendChild(li);
   });
+
   list.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.competitors.splice(Number(btn.dataset.del), 1);
@@ -299,7 +324,6 @@ function parseOutlineToFlatSections(outlineObj) {
   return flat;
 }
 
-
 function extractFirstJsonObject(text) {
   if (typeof text !== "string") return "";
   const trimmed = text.trim();
@@ -350,6 +374,78 @@ function extractFirstJsonObject(text) {
 
   return "";
 }
+function getGenrePromptInstructions(genre = "") {
+  const g = (genre || "").trim().toLowerCase();
+
+  if (g === "kinderbuch") {
+    return `Genre-Regeln:
+- Fokus auf einfache, klare, kindgerechte Sprache.
+- Emotion, Moral und Verständlichkeit sind wichtiger als Komplexität.
+- Die Inhalte sollen gut vorlesbar oder leicht selbst lesbar sein.
+- Zielgruppe sind Kinder; oft lesen Eltern oder Lehrkräfte mit.
+- Klare Handlung, klare Botschaft, keine unnötige Abstraktion.`;
+  }
+
+  if (g === "roman / fiction") {
+    return `Genre-Regeln:
+- Fokus auf Handlung, Konflikt, Dramaturgie und Figurenentwicklung.
+- Zeigen statt erklären.
+- Spannung, emotionale Entwicklung und Szenen sind zentral.
+- Keine typische Ratgeber- oder Fachbuchsprache.`;
+  }
+
+  if (g === "self-help") {
+    return `Genre-Regeln:
+- Fokus auf Leserproblem, Lesertransformation und praktische Umsetzbarkeit.
+- Konkrete Erkenntnisse, klare Schritte, starke Lesernähe.
+- Motivierend, aber nicht oberflächlich oder floskelhaft.
+- Keine generische Standard-Ratgeber-Sprache ohne Substanz.`;
+  }
+
+  if (g === "business") {
+    return `Genre-Regeln:
+- Fokus auf strategischen Nutzen, Klarheit und Autorität.
+- Strukturierte Argumentation, praxisnahe Beispiele, klare Konzepte.
+- Modelle, Frameworks und Entscheidungslogik bevorzugen.
+- Keine vage oder esoterische Sprache.`;
+  }
+
+  if (g === "fachbuch") {
+    return `Genre-Regeln:
+- Fokus auf Präzision, Struktur, Genauigkeit und didaktische Klarheit.
+- Begriffe sauber definieren.
+- Wissen systematisch und nachvollziehbar aufbauen.
+- Keine unnötige Ausschmückung oder emotionale Überdramatisierung.`;
+  }
+
+  if (g === "religion / spiritualität") {
+    return `Genre-Regeln:
+- Respektvolle, würdevolle und sensible Sprache.
+- Fokus auf Werte, Sinn, spirituelle Entwicklung und moralische Orientierung.
+- Keine flapsige, zynische oder unpassend verkaufsorientierte Sprache.
+- Inhalt soll glaubens- und werteorientiert konsistent bleiben.`;
+  }
+
+  if (g === "ratgeber / lifestyle") {
+    return `Genre-Regeln:
+- Fokus auf praktischen Nutzen, Alltagstauglichkeit und Motivation.
+- Konkrete Tipps, leicht verständliche Sprache, anschauliche Beispiele.
+- Leser sollen schnell erkennen, wie sie Inhalte anwenden können.
+- Keine unnötig abstrakte oder akademische Sprache.`;
+  }
+
+  if (g === "biografie") {
+    return `Genre-Regeln:
+- Fokus auf persönliche Entwicklung, Erfahrungen und authentische Stimme.
+- Ereignisse sollen erzählerisch und nachvollziehbar verbunden sein.
+- Ehrlichkeit, Perspektive und emotionale Tiefe sind wichtig.
+- Keine generische Ratgeber- oder Fachsprache, wenn sie nicht passt.`;
+  }
+
+  return `Genre-Regeln:
+- Passe Stil, Struktur, Sprache und Zielsetzung sauber an das angegebene Genre an.
+- Vermeide generische Standard-Non-Fiction-Sprache, wenn sie nicht zum Genre passt.`;
+}
 
 function bindEvents() {
   $("provider").addEventListener("change", () => {
@@ -396,84 +492,744 @@ function bindEvents() {
     saveProjectToLocal();
     alert("Research gespeichert");
   });
+$("analyzeCompetitors").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  $("addCompetitor").addEventListener("click", () => {
-    const title = $("competitorTitle").value.trim();
-    const url = $("competitorUrl").value.trim();
-    if (!title) return;
-    state.competitors.push({ title, url });
-    $("competitorTitle").value = "";
-    $("competitorUrl").value = "";
-    renderCompetitors();
+  const target = $("competitorBreakdown");
+  const button = $("analyzeCompetitors");
+
+  if (!state.competitors.length) {
+    target.value = "Bitte zuerst mindestens ein Wettbewerbsbuch hinzufügen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Analysiere die folgenden Wettbewerbsbücher einzeln für ein neues Buchprojekt.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+WETTBEWERBSBÜCHER:
+${JSON.stringify(state.competitors, null, 2)}
+
+WICHTIG:
+- Analysiere jedes Wettbewerbsbuch einzeln.
+- Nutze nur die gelieferten Daten.
+- Erfinde keine Fakten.
+- Wenn Daten dünn sind, markiere Unsicherheiten klar.
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Competitor Breakdown
+
+## [Buchtitel]
+- Core concept:
+- Target audience:
+- Core promise:
+- Tone:
+- Structure:
+- Differentiation:
+- Likely reason it sells:
+- Data confidence:
+
+Wiederhole dieses Format für jedes Wettbewerbsbuch.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      competitorBreakdown: target.value,
+    };
+
     saveProjectToLocal();
-  });
 
-  $("analyzeMarket").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Erstelle eine präzise Marktanalyse für ein Non-Fiction Buchprojekt.
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("extractPatterns").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const target = $("patternAnalysis");
+  const button = $("extractPatterns");
+
+  if (!sourceText.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Extrahiere aus den folgenden Einzelanalysen von Wettbewerbsbüchern die wichtigsten Markt-Muster.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${sourceText}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Pattern Extraction
+
+## Dominant Market Patterns
+- Welche Marktansätze dominieren?
+
+## Repeated Promises
+- Welche Versprechen wiederholen sich?
+
+## Repeated Audience Targeting
+- Welche Zielgruppen werden immer wieder angesprochen?
+
+## Tone Patterns
+- Welche Tonalitäten dominieren?
+
+## Structure Patterns
+- Welche Buchstrukturen oder Aufbau-Logiken wiederholen sich?
+
+## Differentiation Patterns
+- Welche Differenzierungsansätze kommen oft vor?
+
+## Overused Angles
+- Welche Blickwinkel oder Positionierungen wirken austauschbar oder übernutzt?
+
+Regeln:
+- Arbeite nur mit den gelieferten Daten.
+- Fasse präzise zusammen.
+- Erfinde keine Marktbelege.
+- Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      patternAnalysis: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+  $("generateMarketStrategy").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+
+  const target = $("marketGapStrategy");
+  const button = $("generateMarketStrategy");
+
+  if (!competitorBreakdown.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  if (!patternAnalysis.trim()) {
+    target.value = "Bitte zuerst 'Muster extrahieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
+
+Aufgabe:
+Entwickle aus Projekt, Research-Strategie, Competitor Breakdown und Pattern Extraction
+eine starke Marktpositionierung für das neue Buch.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${competitorBreakdown}
+
+PATTERN EXTRACTION:
+${patternAnalysis}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Market Gap + USP Strategy
+
+## Market Gap
+- Welche echte Lücke oder Chance ist im Markt sichtbar?
+
+## Reader Opportunity
+- Welches Leserproblem ist nicht gut gelöst?
+- Welcher Leserwunsch wird noch nicht stark genug bedient?
+
+## Positioning Strategy
+- Wie sollte das neue Buch im Markt positioniert werden?
+
+## Unique Selling Proposition
+- Formuliere eine klare USP für das neue Buch.
+
+## What to Borrow
+- Was sollte vom Markt gelernt oder übernommen werden?
+
+## What to Avoid
+- Was sollte vermieden werden?
+
+## What to Do Differently
+- Was sollte das neue Buch bewusst anders machen?
+
+## Key Selling Points
+- Formuliere 5 bis 7 konkrete Key Selling Points.
+
+Regeln:
+- Bleibe marktorientiert und konkret.
+- Keine generischen Floskeln.
+- Keine erfundenen Bestseller-Fakten.
+- Positionierung muss zum Genre passen.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      marketGapStrategy: target.value,
+      marketGapAnalysis: target.value,
+      uspStrategy: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+  
+$("extractPatterns").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const target = $("patternAnalysis");
+  const button = $("extractPatterns");
+
+  if (!sourceText.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Extrahiere aus den folgenden Einzelanalysen von Wettbewerbsbüchern die wichtigsten Markt-Muster.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${sourceText}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Pattern Extraction
+
+## Dominant Market Patterns
+- Welche Marktansätze dominieren?
+
+## Repeated Promises
+- Welche Versprechen wiederholen sich?
+
+## Repeated Audience Targeting
+- Welche Zielgruppen werden immer wieder angesprochen?
+
+## Tone Patterns
+- Welche Tonalitäten dominieren?
+
+## Structure Patterns
+- Welche Buchstrukturen oder Aufbau-Logiken wiederholen sich?
+
+## Differentiation Patterns
+- Welche Differenzierungsansätze kommen oft vor?
+
+## Overused Angles
+- Welche Blickwinkel oder Positionierungen wirken austauschbar oder übernutzt?
+
+Regeln:
+- Arbeite nur mit den gelieferten Daten.
+- Fasse präzise zusammen.
+- Erfinde keine Marktbelege.
+- Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      patternAnalysis: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("generateMarketStrategy").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+
+  const target = $("marketGapStrategy");
+  const button = $("generateMarketStrategy");
+
+  if (!competitorBreakdown.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  if (!patternAnalysis.trim()) {
+    target.value = "Bitte zuerst 'Muster extrahieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
+
+Aufgabe:
+Entwickle aus Projekt, Research-Strategie, Competitor Breakdown und Pattern Extraction
+eine starke Marktpositionierung für das neue Buch.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${competitorBreakdown}
+
+PATTERN EXTRACTION:
+${patternAnalysis}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Market Gap + USP Strategy
+
+## Market Gap
+- Welche echte Lücke oder Chance ist im Markt sichtbar?
+
+## Reader Opportunity
+- Welches Leserproblem ist nicht gut gelöst?
+- Welcher Leserwunsch wird noch nicht stark genug bedient?
+
+## Positioning Strategy
+- Wie sollte das neue Buch im Markt positioniert werden?
+
+## Unique Selling Proposition
+- Formuliere eine klare USP für das neue Buch.
+
+## What to Borrow
+- Was sollte vom Markt gelernt oder übernommen werden?
+
+## What to Avoid
+- Was sollte vermieden werden?
+
+## What to Do Differently
+- Was sollte das neue Buch bewusst anders machen?
+
+## Key Selling Points
+- Formuliere 5 bis 7 konkrete Key Selling Points.
+
+Regeln:
+- Bleibe marktorientiert und konkret.
+- Keine generischen Floskeln.
+- Keine erfundenen Bestseller-Fakten.
+- Positionierung muss zum Genre passen.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      marketGapStrategy: target.value,
+      marketGapAnalysis: target.value,
+      uspStrategy: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+  
+  $("generateResearchStrategy").addEventListener("click", async () => {
+  readResearchForm();
+
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Du bist ein erfahrener Buch-Strategieeditor.
+
+Analysiere den folgenden Buchprojekt-Input und erstelle ein strategisches Briefing, das als Grundlage für alle weiteren Buchschritte dient.
+
+Projektinput:
+${JSON.stringify(state.research, null, 2)}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Erstelle ein strategisches Briefing mit:
+
+1. Kernthema des Buchs
+2. Zielgruppe
+3. Hauptproblem des Lesers
+4. Hauptwunsch des Lesers
+5. Zentrales Versprechen des Buchs
+6. Einzigartiger Ansatz
+7. Marktpositionierung
+8. Tonalität und Stimme
+9. Glaubwürdigkeitsanker
+10. Erwartete Transformation des Lesers
+11. Offene Unklarheiten oder strategische Lücken
+
+Regeln:
+- Passe deine Analyse konsequent an das Genre an.
+- Schreibe konkret, nicht generisch.
+- Erfinde keine harten Fakten.
+- Wenn etwas unklar ist, markiere es als Annahme oder Lücke.
+- Schreibe so, dass der Text direkt in Folgeprompts weiterverwendet werden kann.`;
+
+  $("researchStrategy").value = "Generiere...";
+
+  try {
+    const out = await callTextModel(prompt);
+    state.researchStrategy = out;
+    $("researchStrategy").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("researchStrategy").value = e.message;
+  }
+});
+
+ $("addCompetitor").addEventListener("click", () => {
+  const competitor = {
+    title: $("competitorTitle").value.trim(),
+    author: $("competitorAuthor").value.trim(),
+    subtitle: $("competitorSubtitle").value.trim(),
+    url: $("competitorUrl").value.trim(),
+    category: $("competitorCategory").value.trim(),
+    description: $("competitorDescription").value.trim(),
+    targetAudienceGuess: $("competitorTargetAudienceGuess").value.trim(),
+    corePromiseGuess: $("competitorCorePromiseGuess").value.trim(),
+    differentiationGuess: $("competitorDifferentiationGuess").value.trim(),
+    notes: $("competitorNotes").value.trim(),
+    reviewCount: $("competitorReviewCount").value.trim(),
+    rating: $("competitorRating").value.trim(),
+    bestsellerRankOrSignal: $("competitorBestsellerSignal").value.trim(),
+    keywords: $("competitorKeywords").value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    tableOfContentsNotes: $("competitorTableOfContentsNotes").value.trim(),
+    toneGuess: $("competitorToneGuess").value.trim(),
+    structureGuess: $("competitorStructureGuess").value.trim(),
+    keySellingPointsGuess: $("competitorKeySellingPointsGuess").value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    readerPainGuess: $("competitorReaderPainGuess").value.trim(),
+    readerOutcomeGuess: $("competitorReaderOutcomeGuess").value.trim(),
+    source: "manual",
+  };
+
+  if (!competitor.title) return;
+
+  state.competitors.push(competitor);
+
+  $("competitorTitle").value = "";
+  $("competitorAuthor").value = "";
+  $("competitorSubtitle").value = "";
+  $("competitorUrl").value = "";
+  $("competitorCategory").value = "";
+  $("competitorDescription").value = "";
+  $("competitorTargetAudienceGuess").value = "";
+  $("competitorCorePromiseGuess").value = "";
+  $("competitorDifferentiationGuess").value = "";
+  $("competitorNotes").value = "";
+  $("competitorReviewCount").value = "";
+  $("competitorRating").value = "";
+  $("competitorBestsellerSignal").value = "";
+  $("competitorKeywords").value = "";
+  $("competitorTableOfContentsNotes").value = "";
+  $("competitorToneGuess").value = "";
+  $("competitorStructureGuess").value = "";
+  $("competitorKeySellingPointsGuess").value = "";
+  $("competitorReaderPainGuess").value = "";
+  $("competitorReaderOutcomeGuess").value = "";
+
+  renderCompetitors();
+  saveProjectToLocal();
+});
+
+$("analyzeMarket").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const competitorBreakdown =
+    state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis =
+    state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+  const marketGapStrategy =
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "";
+
+  const target = $("marketAnalysis");
+  const button = $("analyzeMarket");
+
+  if (state.competitors.length < 3) {
+  target.value = "⚠️ Hinweis: Für eine aussagekräftige Marktanalyse werden mindestens 3 Wettbewerbsbücher empfohlen.\n\n";
+}
+
+  target.value += "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst und Positionierungsstratege.
+
+Aufgabe:
+Erstelle eine vollständige Marktanalyse für das neue Buchprojekt.
+Nutze dabei die vorhandenen Zwischenstufen der Analyse und verdichte sie zu einer finalen strategischen Marktanalyse.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+WETTBEWERBSBÜCHER:
+${JSON.stringify(state.competitors, null, 2)}
+
+COMPETITOR BREAKDOWN:
+${competitorBreakdown || "Kein Competitor Breakdown vorhanden."}
+
+PATTERN EXTRACTION:
+${patternAnalysis || "Keine Pattern Extraction vorhanden."}
+
+MARKET GAP + USP STRATEGY:
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
+
+Liefere die Analyse in dieser Struktur:
+
+1. Competitive Landscape
+- Wie sieht der Markt insgesamt aus?
+- Welche Arten von Büchern dominieren?
+- Welche Positionierungen sind sichtbar?
+
+2. Competitor Summary
+- Was sind die wichtigsten Erkenntnisse aus den Wettbewerbsbüchern?
+
+3. Pattern Summary
+- Welche dominanten Markt-Muster wurden erkannt?
+
+4. Overused Angles
+- Welche Perspektiven oder Versprechen sind übernutzt?
+
+5. Market Gap
+- Welche echte Marktchance ist sichtbar?
+
+6. Positioning Strategy for the New Book
+- Wie sollte das neue Buch positioniert werden?
+
+7. Unique Selling Proposition
+- Formuliere eine klare USP.
+
+8. Competitive Strategy
+- Was soll übernommen werden?
+- Was soll vermieden werden?
+- Was soll neu gemacht werden?
+
+9. Key Selling Points
+- Formuliere 5 bis 7 Key Selling Points.
+
+Regeln:
+- Baue auf den vorhandenen Zwischenstufen auf.
+- Werde konkret.
+- Erfinde keine Daten.
+- Passe die Analyse sauber an das Genre an.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      finalMarketAnalysis: target.value,
+    };
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+
+    saveProjectToLocal();
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+
+    saveProjectToLocal();
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+  $("generateTitles").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Generiere 10 prägnante Buchtitel für dieses Projekt, jeweils in einer neuen Zeile ohne Nummerierung.
 
 Projekt:
 ${JSON.stringify(state.research, null, 2)}
 
-Wettbewerber:
-${JSON.stringify(state.competitors, null, 2)}
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Liefere:
-1) Wettbewerbs-Muster
-2) Lücken/Chancen
-3) Differenzierungsstrategie
-4) 7 klare USP-Ideen`;
+Genre:
+${state.research.genre || "nicht angegeben"}
 
-    const target = $("marketAnalysis");
-    const button = $("analyzeMarket");
-    target.value = "Generiere...";
-    button.disabled = true;
+${genreInstructions}
 
-    try {
-      const out = await callTextModel(prompt);
-      target.value = (out || "").trim();
-      if (!target.value) {
-        target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-      }
-    } catch (e) {
-      target.value = e.message;
-    } finally {
-      button.disabled = false;
-    }
-  });
+Regeln:
+- Die Titel müssen zum Genre passen.
+- Sie sollen merkfähig und nicht generisch sein.
+- Sie sollen das zentrale Versprechen, den Kernkonflikt oder den inhaltlichen Kern des Buchs andeuten.
+- Keine Nummerierung, keine Erklärungen, nur Titelzeilen.`;
 
-  $("generateTitles").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Generiere 10 prägnante Buchtitel für dieses Projekt, jeweils in einer neuen Zeile ohne Nummerierung:\n${JSON.stringify(
-      state.research,
-      null,
-      2,
-    )}`;
-    const list = $("titleOptions");
-    list.innerHTML = "<li>Generiere...</li>";
-    try {
-      const out = await callTextModel(prompt);
-      state.titles = out
-        .split("\n")
-        .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
-        .filter(Boolean)
-        .slice(0, 10);
-      list.innerHTML = "";
-      state.titles.forEach((t) => {
-        const li = document.createElement("li");
-        li.textContent = t;
-        li.addEventListener("click", () => {
-          $("bookTitle").value = t;
-          readResearchForm();
-          saveProjectToLocal();
-        });
-        list.appendChild(li);
+  const list = $("titleOptions");
+  list.innerHTML = "<li>Generiere...</li>";
+  try {
+    const out = await callTextModel(prompt);
+    state.titles = out
+      .split("\n")
+      .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    list.innerHTML = "";
+    state.titles.forEach((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      li.addEventListener("click", () => {
+        $("bookTitle").value = t;
+        readResearchForm();
+        saveProjectToLocal();
       });
-      saveProjectToLocal();
-    } catch (e) {
-      list.innerHTML = `<li>${e.message}</li>`;
-    }
-  });
+      list.appendChild(li);
+    });
+    saveProjectToLocal();
+  } catch (e) {
+    list.innerHTML = `<li>${e.message}</li>`;
+  }
+});
 
   $("addResourceUrl").addEventListener("click", () => {
     const url = $("resourceUrl").value.trim();
@@ -508,77 +1264,142 @@ Liefere:
   });
 
   $("generatePersona").addEventListener("click", async () => {
-    const input = {
-      name: $("personaName").value.trim(),
-      refs: $("personaRefs").value.trim(),
-      background: $("personaBackground").value.trim(),
-      sample: $("writingSample").value.trim(),
-      research: state.research,
-    };
-    $("personaResult").value = "Generiere...";
-    try {
-      const out = await callTextModel(
-        `Erzeuge eine detaillierte Author Persona für ein Sachbuchprojekt:\n${JSON.stringify(input, null, 2)}\n
-Struktur: Stimme, Ton, Perspektive, Satzlänge, Story-Muster, Do/Don't-Regeln.`,
-      );
-      state.persona = out;
-      $("personaResult").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("personaResult").value = e.message;
-    }
-  });
+  const input = {
+    name: $("personaName").value.trim(),
+    refs: $("personaRefs").value.trim(),
+    background: $("personaBackground").value.trim(),
+    sample: $("writingSample").value.trim(),
+    research: state.research,
+    researchStrategy: state.researchStrategy,
+    genre: state.research.genre || "",
+    genreInstructions: getGenrePromptInstructions(state.research.genre),
+  };
 
-  $("generateProposedBook").addEventListener("click", async () => {
-    readResearchForm();
-    const prompt = `Erstelle ein "Proposed Book" inkl. Unique Selling Point, Marktpositionierung, Key Selling Points, Zielgruppe, Tonalität.
+  $("personaResult").value = "Generiere...";
 
-Projekt: ${JSON.stringify(
-      state.research,
-      null,
-      2,
-    )}
-Persona: ${state.persona}
-Marktanalyse: ${$("marketAnalysis").value}
-Tags: ${$("focusTags").value}`;
-    $("proposedBook").value = "Generiere...";
-    try {
-      const out = await callTextModel(prompt);
-      state.proposedBook = out;
-      $("proposedBook").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("proposedBook").value = e.message;
-    }
-  });
+  try {
+    const out = await callTextModel(
+      `Erzeuge eine detaillierte Author Persona für dieses Buchprojekt:\n${JSON.stringify(input, null, 2)}\n
+Struktur:
+- Stimme
+- Ton
+- Perspektive
+- Satzlänge
+- Story-Muster
+- Do/Don't-Regeln
+
+Regeln:
+- Passe die Persona an Genre und strategisches Briefing an.
+- Die Persona soll später als konsistente Schreibgrundlage für Outline und Kapitel dienen.
+- Vermeide generische Standard-Non-Fiction-Stimme, wenn sie nicht zum Genre passt.`,
+    );
+    state.persona = out;
+    $("personaResult").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("personaResult").value = e.message;
+  }
+});
+
+ $("generateProposedBook").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const prompt = `Erstelle ein "Proposed Book" für dieses Buchprojekt.
+
+Projekt:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Persona:
+${state.persona}
+
+Marktanalyse:
+${$("marketAnalysis").value}
+
+Tags:
+${$("focusTags").value}
+
+Liefere:
+1. Unique Selling Point
+2. Marktpositionierung
+3. Key Selling Points
+4. Zielgruppe
+5. Tonalität
+6. Kernaussage des Buchs
+7. Warum dieses Buch in diesem Markt relevant ist
+
+Regeln:
+- Passe Struktur, Nutzenversprechen und Ton an das Genre an.
+- Arbeite konkret und differenzierend.
+- Vermeide generische Standardformulierungen.`;
+
+  $("proposedBook").value = "Generiere...";
+  try {
+    const out = await callTextModel(prompt);
+    state.proposedBook = out;
+    $("proposedBook").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("proposedBook").value = e.message;
+  }
+});
 
   $("generateOutline").addEventListener("click", async () => {
     readResearchForm();
     const spec = {
-      targetWords: Number($("targetWords").value || 25000),
-      chapterCount: Number($("chapterCount").value || 10),
-      structure: $("structure").value.trim(),
-      research: state.research,
-      persona: state.persona,
-      proposedBook: $("proposedBook").value,
-      resources: state.resources.slice(0, 30),
-    };
+  targetWords: Number($("targetWords").value || 25000),
+  chapterCount: Number($("chapterCount").value || 10),
+  structure: $("structure").value.trim(),
+  research: state.research,
+  researchStrategy: state.researchStrategy,
+  genre: state.research.genre || "",
+  genreInstructions: getGenrePromptInstructions(state.research.genre),
+  persona: state.persona,
+  proposedBook: $("proposedBook").value,
+  resources: state.resources.slice(0, 30),
+};
 
-    const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
-    const prompt = `Erstelle ein JSON mit diesem Schema:
+
+const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
+const prompt = `Erstelle ein JSON mit diesem Schema:
 {
   "chapters":[
     {
-      "title":"...",
-      "targetWords":2000,
+      "title":"Kapitel Titel",
+      "targetWords":"<Wörter für dieses Kapitel>",
       "sections":[
-        {"title":"...","targetWords":700,"subsections":["...","..."]}
+        {
+          "title":"Sektion Titel",
+          "targetWords":"<Wörter für diese Sektion>",
+          "subsections":["Unterthema 1","Unterthema 2"]
+        }
       ]
     }
   ]
 }
-Anforderungen: variable Kapitel- und Sektionslängen, nicht repetitiv, handlungsorientiert, für Non-Fiction.
-Input:\n${JSON.stringify(spec, null, 2)}`;
+
+Anforderungen:
+- Variable Kapitel- und Sektionslängen
+- Nicht repetitiv
+- Handlungsorientiert, wenn das Genre dazu passt
+- Struktur, Dramaturgie und Abschnittstypen müssen zum Genre passen
+- Die Outline muss das Strategie-Briefing klar widerspiegeln
+- Keine generische Standard-Non-Fiction-Struktur, wenn sie nicht zum Genre passt
+- Kapitel und Sektionen sollen logisch aufeinander aufbauen
+- Die Summe aller Kapitel soll ungefähr dem Gesamtziel aus Input.targetWords entsprechen
+- Die Wortverteilung soll sinnvoll auf Input.chapterCount und die Dramaturgie des Buchs verteilt werden
+- targetWords in Kapiteln und Sektionen müssen als Zahlen ausgegeben werden
+
+Input:
+${JSON.stringify(spec, null, 2)}`;
 
     $("outline").value = "Generiere JSON...";
     try {
@@ -615,21 +1436,44 @@ Input:\n${JSON.stringify(spec, null, 2)}`;
       .join("\n\n")
       .slice(0, 12000);
 
-    const prompt = `Schreibe die nächste Buchsektion in deutscher Sprache.
+    const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+const prompt = `Schreibe die nächste Buchsektion in deutscher Sprache.
 
 Regeln:
-- Non-Fiction, hochwertige Substanz, konkrete Beispiele.
 - Keine Wiederholungen mit vorherigem Text.
-- Nutze Persona und Stance konsequent.
+- Nutze Persona, Stance und Strategie-Briefing konsequent.
 - Länge ungefähr ${sec.targetWords} Wörter.
-- Ende mit kurzer Brücke zur nächsten Sektion.
+- Stil, Struktur und Sprache müssen zum Genre passen.
+- Schreibe substanziell, klar und konkret.
+- Ende mit einer kurzen natürlichen Brücke zur nächsten Sektion, wenn es passt.
 
-Projekt: ${JSON.stringify(state.research, null, 2)}
-Persona:\n${state.persona}
-Subsections: ${sec.subsections.join(", ")}
-Aktuelle Sektion: Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}".
-Vorheriger Text:\n${previous}
-Ressourcen:\n${resourceContext}`;
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Projekt:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Persona:
+${state.persona}
+
+Subsections:
+${(sec.subsections || []).join(", ")}
+
+Aktuelle Sektion:
+Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}"
+
+Vorheriger Text:
+${previous}
+
+Ressourcen:
+${resourceContext}`;
+
 
     $("currentSection").value = "Generiere...";
     try {
@@ -722,24 +1566,45 @@ Ressourcen:\n${resourceContext}`;
     }
   });
 
-  $("generateDescription").addEventListener("click", async () => {
-    const prompt = `Erstelle eine verkaufsstarke Buchbeschreibung mit Struktur:
-Headline, Relate, Bullet Benefits, Objection Handling, CTA.
+ $("generateDescription").addEventListener("click", async () => {
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-Buch:\n${JSON.stringify(state.research, null, 2)}
-Proposed Book:\n${state.proposedBook}
-Manuskript Auszug:\n${state.manuscriptSections.join("\n\n").slice(0, 8000)}`;
+  const prompt = `Erstelle eine starke Buchbeschreibung für dieses Projekt.
 
-    $("bookDescription").value = "Generiere...";
-    try {
-      const out = await callTextModel(prompt);
-      state.description = out;
-      $("bookDescription").value = out;
-      saveProjectToLocal();
-    } catch (e) {
-      $("bookDescription").value = e.message;
-    }
-  });
+Buch:
+${JSON.stringify(state.research, null, 2)}
+
+Strategie-Briefing:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+Genre:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+Proposed Book:
+${state.proposedBook}
+
+Manuskript Auszug:
+${state.manuscriptSections.join("\n\n").slice(0, 8000)}
+
+Regeln:
+- Passe Sprache, Ton und Aufbau an das Genre an.
+- Für Self-Help, Business, Fachbuch und Ratgeber darf die Beschreibung klar nutzenorientiert und verkaufsstark sein.
+- Für Kinderbuch, Roman / Fiction, Religion / Spiritualität und Biografie soll die Beschreibung stilistisch passender und weniger wie aggressive Sales-Copy wirken.
+- Keine generischen Phrasen.
+- Arbeite mit klarem Nutzen, klarer Positionierung oder klarem emotionalem Reiz — je nach Genre.`;
+
+  $("bookDescription").value = "Generiere...";
+  try {
+    const out = await callTextModel(prompt);
+    state.description = out;
+    $("bookDescription").value = out;
+    saveProjectToLocal();
+  } catch (e) {
+    $("bookDescription").value = e.message;
+  }
+});
 
   $("downloadMarkdown").addEventListener("click", () => {
     readResearchForm();
@@ -779,6 +1644,11 @@ Manuskript Auszug:\n${state.manuscriptSections.join("\n\n").slice(0, 8000)}`;
     renderResources();
     $("personaResult").value = state.persona || "";
     $("proposedBook").value = state.proposedBook || "";
+    $("researchStrategy").value = state.researchStrategy || "";
+    $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
+    $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
+    $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
+    $("marketAnalysis").value = state.marketResearch?.finalMarketAnalysis || "";
     $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
     refreshWritingView();
     renderImages();
@@ -805,6 +1675,11 @@ function init() {
   renderResources();
   $("personaResult").value = state.persona || "";
   $("proposedBook").value = state.proposedBook || "";
+  $("researchStrategy").value = state.researchStrategy || "";
+  $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
+  $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
+  $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
+  $("marketAnalysis").value = state.marketResearch?.finalMarketAnalysis || "";
   $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
   $("bookDescription").value = state.description || "";
   refreshWritingView();
