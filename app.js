@@ -246,7 +246,11 @@ function fillResearchForm() {
 
 function renderCompetitors() {
   const list = $("competitorList");
+  const count = $("competitorCount");
   list.innerHTML = "";
+
+  const total = state.competitors.length;
+  count.textContent = `Wettbewerbsbücher: ${total} (empfohlen: 3–7)`;
 
   state.competitors.forEach((c, i) => {
     const li = document.createElement("li");
