@@ -15,6 +15,7 @@ marketResearch: {
   competitorBreakdown: "",
   patternAnalysis: "",
   marketGapStrategy: "",
+  finalMarketAnalysis: "",
   competitorBreakdowns: [],
   marketGapAnalysis: "",
   uspStrategy: "",
@@ -567,6 +568,197 @@ Wiederhole dieses Format für jedes Wettbewerbsbuch.`;
     button.disabled = false;
   }
 });
+
+$("extractPatterns").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const target = $("patternAnalysis");
+  const button = $("extractPatterns");
+
+  if (!sourceText.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Extrahiere aus den folgenden Einzelanalysen von Wettbewerbsbüchern die wichtigsten Markt-Muster.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${sourceText}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Pattern Extraction
+
+## Dominant Market Patterns
+- Welche Marktansätze dominieren?
+
+## Repeated Promises
+- Welche Versprechen wiederholen sich?
+
+## Repeated Audience Targeting
+- Welche Zielgruppen werden immer wieder angesprochen?
+
+## Tone Patterns
+- Welche Tonalitäten dominieren?
+
+## Structure Patterns
+- Welche Buchstrukturen oder Aufbau-Logiken wiederholen sich?
+
+## Differentiation Patterns
+- Welche Differenzierungsansätze kommen oft vor?
+
+## Overused Angles
+- Welche Blickwinkel oder Positionierungen wirken austauschbar oder übernutzt?
+
+Regeln:
+- Arbeite nur mit den gelieferten Daten.
+- Fasse präzise zusammen.
+- Erfinde keine Marktbelege.
+- Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      patternAnalysis: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("generateMarketStrategy").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+
+  const target = $("marketGapStrategy");
+  const button = $("generateMarketStrategy");
+
+  if (!competitorBreakdown.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  if (!patternAnalysis.trim()) {
+    target.value = "Bitte zuerst 'Muster extrahieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
+
+Aufgabe:
+Entwickle aus Projekt, Research-Strategie, Competitor Breakdown und Pattern Extraction
+eine starke Marktpositionierung für das neue Buch.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${competitorBreakdown}
+
+PATTERN EXTRACTION:
+${patternAnalysis}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Market Gap + USP Strategy
+
+## Market Gap
+- Welche echte Lücke oder Chance ist im Markt sichtbar?
+
+## Reader Opportunity
+- Welches Leserproblem ist nicht gut gelöst?
+- Welcher Leserwunsch wird noch nicht stark genug bedient?
+
+## Positioning Strategy
+- Wie sollte das neue Buch im Markt positioniert werden?
+
+## Unique Selling Proposition
+- Formuliere eine klare USP für das neue Buch.
+
+## What to Borrow
+- Was sollte vom Markt gelernt oder übernommen werden?
+
+## What to Avoid
+- Was sollte vermieden werden?
+
+## What to Do Differently
+- Was sollte das neue Buch bewusst anders machen?
+
+## Key Selling Points
+- Formuliere 5 bis 7 konkrete Key Selling Points.
+
+Regeln:
+- Bleibe marktorientiert und konkret.
+- Keine generischen Floskeln.
+- Keine erfundenen Bestseller-Fakten.
+- Positionierung muss zum Genre passen.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      marketGapStrategy: target.value,
+      marketGapAnalysis: target.value,
+      uspStrategy: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
   
   $("generateResearchStrategy").addEventListener("click", async () => {
   readResearchForm();
@@ -685,8 +877,8 @@ $("analyzeMarket").addEventListener("click", async () => {
   const prompt = `Du bist ein erfahrener Buchmarkt-Analyst und Positionierungsstratege.
 
 Aufgabe:
-Analysiere die folgenden manuell recherchierten Wettbewerbsbücher und entwickle daraus
-eine vollständige Marktanalyse für das neue Buchprojekt.
+Erstelle eine vollständige Marktanalyse für das neue Buchprojekt.
+Nutze dabei die vorhandenen Zwischenstufen der Analyse und verdichte sie zu einer finalen strategischen Marktanalyse.
 
 NEUES BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
@@ -702,11 +894,14 @@ ${genreInstructions}
 WETTBEWERBSBÜCHER:
 ${JSON.stringify(state.competitors, null, 2)}
 
-WICHTIG:
-- Nutze ausschließlich die gelieferten Wettbewerbsdaten.
-- Analysiere Strategie, Positionierung, Muster und Lücken.
-- Kopiere keine Texte.
-- Wenn Daten unklar oder dünn sind, markiere Unsicherheiten offen.
+COMPETITOR BREAKDOWN:
+${state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "Kein Competitor Breakdown vorhanden."}
+
+PATTERN EXTRACTION:
+${state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "Keine Pattern Extraction vorhanden."}
+
+MARKET GAP + USP STRATEGY:
+${state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "Keine Market-Gap-Strategie vorhanden."}
 
 Liefere die Analyse in dieser Struktur:
 
@@ -715,47 +910,37 @@ Liefere die Analyse in dieser Struktur:
 - Welche Arten von Büchern dominieren?
 - Welche Positionierungen sind sichtbar?
 
-2. Competitor Breakdown
-- Analysiere jedes Wettbewerbsbuch einzeln:
-  - Core concept
-  - Target audience
-  - Core promise
-  - Tone
-  - Structure
-  - Differentiation
-  - Likely reason it sells
+2. Competitor Summary
+- Was sind die wichtigsten Erkenntnisse aus den Wettbewerbsbüchern?
 
-3. Pattern Extraction
-- Welche Muster wiederholen sich über die Bücher hinweg?
-- Welche Versprechen, Töne, Strukturen und Positionierungen dominieren?
+3. Pattern Summary
+- Welche dominanten Markt-Muster wurden erkannt?
 
 4. Overused Angles
-- Welche Perspektiven wirken austauschbar oder übernutzt?
+- Welche Perspektiven oder Versprechen sind übernutzt?
 
 5. Market Gap
-- Welche Lücken oder Chancen sind im Markt sichtbar?
-- Was fehlt für Leser aktuell?
+- Welche echte Marktchance ist sichtbar?
 
 6. Positioning Strategy for the New Book
 - Wie sollte das neue Buch positioniert werden?
-- Welche Marktchance ist am stärksten?
 
 7. Unique Selling Proposition
-- Formuliere eine klare USP für das neue Buch.
+- Formuliere eine klare USP.
 
 8. Competitive Strategy
-- Was sollte vom Markt gelernt / übernommen werden?
-- Was sollte bewusst vermieden werden?
-- Was sollte neu oder anders gemacht werden?
+- Was soll übernommen werden?
+- Was soll vermieden werden?
+- Was soll neu gemacht werden?
 
 9. Key Selling Points
-- Formuliere 5 bis 7 konkrete Key Selling Points für Marketing und Positionierung.
+- Formuliere 5 bis 7 Key Selling Points.
 
 Regeln:
-- Passe die Analyse konsequent an das Genre an.
-- Arbeite konkret statt generisch.
-- Keine erfundenen Bestseller-Fakten.
-- Wenn wenige Wettbewerbsdaten vorliegen, mache das transparent.`;
+- Baue auf den vorhandenen Zwischenstufen auf.
+- Werde konkret.
+- Erfinde keine Daten.
+- Passe die Analyse sauber an das Genre an.`;
 
   const target = $("marketAnalysis");
   const button = $("analyzeMarket");
@@ -766,12 +951,10 @@ Regeln:
     const out = await callTextModel(prompt);
     target.value = (out || "").trim();
 
-    state.marketResearch = {
-      competitorBreakdowns: [],
-      patternAnalysis: "",
-      marketGapAnalysis: "",
-      uspStrategy: target.value,
-    };
+state.marketResearch = {
+  ...state.marketResearch,
+  finalMarketAnalysis: target.value,
+};
 
     if (!target.value) {
       target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
@@ -1066,7 +1249,7 @@ Persona:
 ${state.persona}
 
 Subsections:
-${sec.subsections.join(", ")}
+${(sec.subsections || []).join(", ")}
 
 Aktuelle Sektion:
 Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}"
