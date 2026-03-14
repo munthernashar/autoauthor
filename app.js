@@ -656,6 +656,197 @@ Regeln:
   }
 });
 
+  $("generateMarketStrategy").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+
+  const target = $("marketGapStrategy");
+  const button = $("generateMarketStrategy");
+
+  if (!competitorBreakdown.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  if (!patternAnalysis.trim()) {
+    target.value = "Bitte zuerst 'Muster extrahieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
+
+Aufgabe:
+Entwickle aus Projekt, Research-Strategie, Competitor Breakdown und Pattern Extraction
+eine starke Marktpositionierung für das neue Buch.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${competitorBreakdown}
+
+PATTERN EXTRACTION:
+${patternAnalysis}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Market Gap + USP Strategy
+
+## Market Gap
+- Welche echte Lücke oder Chance ist im Markt sichtbar?
+
+## Reader Opportunity
+- Welches Leserproblem ist nicht gut gelöst?
+- Welcher Leserwunsch wird noch nicht stark genug bedient?
+
+## Positioning Strategy
+- Wie sollte das neue Buch im Markt positioniert werden?
+
+## Unique Selling Proposition
+- Formuliere eine klare USP für das neue Buch.
+
+## What to Borrow
+- Was sollte vom Markt gelernt oder übernommen werden?
+
+## What to Avoid
+- Was sollte vermieden werden?
+
+## What to Do Differently
+- Was sollte das neue Buch bewusst anders machen?
+
+## Key Selling Points
+- Formuliere 5 bis 7 konkrete Key Selling Points.
+
+Regeln:
+- Bleibe marktorientiert und konkret.
+- Keine generischen Floskeln.
+- Keine erfundenen Bestseller-Fakten.
+- Positionierung muss zum Genre passen.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      marketGapStrategy: target.value,
+      marketGapAnalysis: target.value,
+      uspStrategy: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+  
+$("extractPatterns").addEventListener("click", async () => {
+  readResearchForm();
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
+
+  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const target = $("patternAnalysis");
+  const button = $("extractPatterns");
+
+  if (!sourceText.trim()) {
+    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
+    return;
+  }
+
+  target.value = "Generiere...";
+  button.disabled = true;
+
+  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
+
+Aufgabe:
+Extrahiere aus den folgenden Einzelanalysen von Wettbewerbsbüchern die wichtigsten Markt-Muster.
+
+NEUES BUCHPROJEKT:
+${JSON.stringify(state.research, null, 2)}
+
+RESEARCH-STRATEGIE:
+${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+
+GENRE:
+${state.research.genre || "nicht angegeben"}
+
+${genreInstructions}
+
+COMPETITOR BREAKDOWN:
+${sourceText}
+
+Liefere die Ausgabe in dieser Struktur:
+
+# Pattern Extraction
+
+## Dominant Market Patterns
+- Welche Marktansätze dominieren?
+
+## Repeated Promises
+- Welche Versprechen wiederholen sich?
+
+## Repeated Audience Targeting
+- Welche Zielgruppen werden immer wieder angesprochen?
+
+## Tone Patterns
+- Welche Tonalitäten dominieren?
+
+## Structure Patterns
+- Welche Buchstrukturen oder Aufbau-Logiken wiederholen sich?
+
+## Differentiation Patterns
+- Welche Differenzierungsansätze kommen oft vor?
+
+## Overused Angles
+- Welche Blickwinkel oder Positionierungen wirken austauschbar oder übernutzt?
+
+Regeln:
+- Arbeite nur mit den gelieferten Daten.
+- Fasse präzise zusammen.
+- Erfinde keine Marktbelege.
+- Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
+
+  try {
+    const out = await callTextModel(prompt);
+    target.value = (out || "").trim();
+
+    state.marketResearch = {
+      ...state.marketResearch,
+      patternAnalysis: target.value,
+    };
+
+    saveProjectToLocal();
+
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $("generateMarketStrategy").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
@@ -874,6 +1065,23 @@ $("analyzeMarket").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
+  const competitorBreakdown =
+    state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const patternAnalysis =
+    state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+  const marketGapStrategy =
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "";
+
+  const target = $("marketAnalysis");
+  const button = $("analyzeMarket");
+
+  if (state.competitors.length < 3) {
+  target.value = "⚠️ Hinweis: Für eine aussagekräftige Marktanalyse werden mindestens 3 Wettbewerbsbücher empfohlen.\n\n";
+}
+
+  target.value += "Generiere...";
+  button.disabled = true;
+
   const prompt = `Du bist ein erfahrener Buchmarkt-Analyst und Positionierungsstratege.
 
 Aufgabe:
@@ -895,13 +1103,13 @@ WETTBEWERBSBÜCHER:
 ${JSON.stringify(state.competitors, null, 2)}
 
 COMPETITOR BREAKDOWN:
-${state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "Kein Competitor Breakdown vorhanden."}
+${competitorBreakdown || "Kein Competitor Breakdown vorhanden."}
 
 PATTERN EXTRACTION:
-${state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "Keine Pattern Extraction vorhanden."}
+${patternAnalysis || "Keine Pattern Extraction vorhanden."}
 
 MARKET GAP + USP STRATEGY:
-${state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "Keine Market-Gap-Strategie vorhanden."}
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
 
 Liefere die Analyse in dieser Struktur:
 
@@ -942,20 +1150,26 @@ Regeln:
 - Erfinde keine Daten.
 - Passe die Analyse sauber an das Genre an.`;
 
-  const target = $("marketAnalysis");
-  const button = $("analyzeMarket");
-  target.value = "Generiere...";
-  button.disabled = true;
-
   try {
     const out = await callTextModel(prompt);
     target.value = (out || "").trim();
 
-state.marketResearch = {
-  ...state.marketResearch,
-  finalMarketAnalysis: target.value,
-};
+    state.marketResearch = {
+      ...state.marketResearch,
+      finalMarketAnalysis: target.value,
+    };
 
+    if (!target.value) {
+      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
+
+    saveProjectToLocal();
+  } catch (e) {
+    target.value = e.message;
+  } finally {
+    button.disabled = false;
+  }
+});
     if (!target.value) {
       target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
     }
@@ -1434,6 +1648,7 @@ Regeln:
     $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
     $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
     $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
+    $("marketAnalysis").value = state.marketResearch?.finalMarketAnalysis || "";
     $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
     refreshWritingView();
     renderImages();
@@ -1464,6 +1679,7 @@ function init() {
   $("competitorBreakdown").value = state.marketResearch?.competitorBreakdown || "";
   $("patternAnalysis").value = state.marketResearch?.patternAnalysis || "";
   $("marketGapStrategy").value = state.marketResearch?.marketGapStrategy || "";
+  $("marketAnalysis").value = state.marketResearch?.finalMarketAnalysis || "";
   $("outline").value = state.outline ? JSON.stringify(state.outline, null, 2) : "";
   $("bookDescription").value = state.description || "";
   refreshWritingView();
