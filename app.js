@@ -817,6 +817,7 @@ state.research = {
 function fillResearchForm() {
   const r = state.research || {};
   $("bookTitle").value = r.bookTitle || "";
+  $("bookSubtitle").value = r.subtitle || "";
   $("authorName").value = r.authorName || "";
   $("genre").value = r.genre || "";
   $("topic").value = r.topic || "";
@@ -2419,7 +2420,9 @@ $("generateImage").addEventListener("click", async () => {
 
 $("generateCover").addEventListener("click", async () => {
     const title = state.research.bookTitle || "Untitled";
-    const subtitle = `A practical guide on ${state.research.topic || "your topic"}`;
+    const subtitle =
+      state.research.subtitle ||
+      `A practical guide on ${state.research.topic || "your topic"}`;
     const prompt = `Professional book cover design, readable typography, title: "${title}", subtitle: "${subtitle}", author: "${state.research.authorName || "Author"}", modern non-fiction, clean layout`;
     try {
       const url = await generateImage(prompt);
