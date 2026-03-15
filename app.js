@@ -688,8 +688,8 @@ function parseOutlineToFlatSections(outlineObj) {
     const sections = ch.sections || [];
     const fallbackSectionWords =
       sections.length > 0 && chapterTargetWords > 0
-        ? Math.max(400, Math.round(chapterTargetWords / sections.length))
-        : 700;
+        ? Math.max(1, Math.round(chapterTargetWords / sections.length))
+        : Math.max(1, chapterTargetWords || 1);
 
     sections.forEach((sec, sIdx) => {
       flat.push({
@@ -717,21 +717,21 @@ function normalizeOutlineTargetWords(outlineObj, totalTargetWords, chapterCount)
   const chapters = Array.isArray(outlineObj?.chapters) ? outlineObj.chapters : [];
   if (!chapters.length) return outlineObj;
 
-  const safeTotalTargetWords = Math.max(1000, Number(totalTargetWords) || 25000);
+  const safeTotalTargetWords = Math.max(1, Number(totalTargetWords) || 25000);
   const safeChapterCount = Math.max(1, Number(chapterCount) || chapters.length || 1);
 
-  const baseChapterWords = Math.max(800, Math.round(safeTotalTargetWords / safeChapterCount));
+  const baseChapterWords = Math.max(1, Math.round(safeTotalTargetWords / safeChapterCount));
 
   chapters.forEach((chapter) => {
     const sections = Array.isArray(chapter.sections) ? chapter.sections : [];
-    chapter.targetWords = Math.max(800, Number(chapter.targetWords) || baseChapterWords);
+    chapter.targetWords = Math.max(1, Number(chapter.targetWords) || baseChapterWords);
 
     const baseSectionWords = sections.length
-      ? Math.max(400, Math.round(chapter.targetWords / sections.length))
-      : 700;
+      ? Math.max(1, Math.round(chapter.targetWords / sections.length))
+      : Math.max(1, Math.round(chapter.targetWords || baseChapterWords));
 
     sections.forEach((section) => {
-      section.targetWords = Math.max(300, Number(section.targetWords) || baseSectionWords);
+      section.targetWords = Math.max(1, Number(section.targetWords) || baseSectionWords);
     });
   });
 
@@ -751,7 +751,7 @@ function getOutlineTargetWordsReport(outlineObj, expectedTotalWords) {
     0,
   );
 
-  const expected = Math.max(1000, Number(expectedTotalWords) || 25000);
+  const expected = Math.max(1, Number(expectedTotalWords) || 25000);
   const deviation = Math.abs(chapterSum - expected);
   const deviationPct = deviation / expected;
 
