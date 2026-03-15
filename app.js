@@ -307,6 +307,25 @@ function refreshWritingView() {
   $("manuscript").value = state.manuscriptSections.join("\n\n");
 }
 
+function formatManuscriptSection(sec, text, sectionIndex) {
+  const previousSec = sectionIndex > 0 ? state.flatSections[sectionIndex - 1] : null;
+  const isNewChapter = !previousSec || previousSec.cIdx !== sec.cIdx;
+  const chapterNumber = (sec.cIdx ?? 0) + 1;
+
+  const blocks = [];
+
+  if (isNewChapter) {
+    blocks.push(`KAPITEL ${chapterNumber}`);
+    if (sec.chapterTitle) blocks.push(sec.chapterTitle.trim());
+  }
+
+  if (text && text.trim()) {
+    blocks.push(text.trim());
+  }
+
+  return blocks.join("\n\n");
+}
+
 function parseOutlineToFlatSections(outlineObj) {
   const flat = [];
   (outlineObj.chapters || []).forEach((ch, cIdx) => {
@@ -1613,6 +1632,8 @@ AUSGABEREGELN:
 - Gib nur den eigentlichen Buchtext der Sektion aus.
 - Keine Markdown-Syntax im Inhalt.
 - Keine Überschrift ausgeben.
+- Keine Kapitelüberschrift ausgeben.
+- Keine Sektionsüberschrift ausgeben.
 - Keine Doppeltitel.
 - Keine Meta-Sätze wie "Im nächsten Abschnitt", "Als Nächstes", "In diesem Kapitel werden wir".
 - Keine Erklärungen darüber, was du tust.
@@ -1709,10 +1730,12 @@ INTERNE SELBSTPRÜFUNG VOR DEM SCHREIBEN:
 
     $("currentSection").value = finalOut + wordHint;
 
+    const formattedSection = formatManuscriptSection(sec, finalOut, idx);
+
     if (isRewrite) {
-      state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${finalOut}`;
+      state.manuscriptSections[idx] = formattedSection;
     } else {
-      state.manuscriptSections.push(`## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${finalOut}`);
+      state.manuscriptSections.push(formattedSection);
       state.currentSectionIndex += 1;
     }
 
