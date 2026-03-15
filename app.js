@@ -447,6 +447,43 @@ function getGenrePromptInstructions(genre = "") {
 - Vermeide generische Standard-Non-Fiction-Sprache, wenn sie nicht zum Genre passt.`;
 }
 
+function getCompetitorDataWarnings() {
+  const warnings = [];
+
+  if (state.competitors.length < 3) {
+    warnings.push("Für belastbare Marktanalyse sind mindestens 3 Wettbewerbsbücher empfohlen.");
+  }
+
+  const thinCompetitors = state.competitors.filter((c) => {
+    const strongFields = [
+      c.title,
+      c.author,
+      c.subtitle,
+      c.category,
+      c.description,
+      c.corePromiseGuess,
+      c.differentiationGuess,
+      c.notes,
+    ].filter((v) => String(v || "").trim()).length;
+
+    return strongFields < 4;
+  });
+
+  if (thinCompetitors.length) {
+    warnings.push(
+      `${thinCompetitors.length} Wettbewerbsbuch/Bücher haben sehr dünne Daten. Mindestens Titel, Beschreibung, Kategorie, Versprechen oder Differenzierung sollten vorhanden sein.`,
+    );
+  }
+
+  return warnings;
+}
+
+function showWarningsInTextarea(el, warnings = []) {
+  if (!warnings.length) return false;
+  el.value = `⚠️ Hinweise:\n- ${warnings.join("\n- ")}\n\n`;
+  return true;
+}
+
 function bindEvents() {
   $("provider").addEventListener("change", () => {
     state.provider = $("provider").value;
@@ -499,12 +536,14 @@ $("analyzeCompetitors").addEventListener("click", async () => {
   const target = $("competitorBreakdown");
   const button = $("analyzeCompetitors");
 
-  if (!state.competitors.length) {
+   if (!state.competitors.length) {
     target.value = "Bitte zuerst mindestens ein Wettbewerbsbuch hinzufügen.";
     return;
   }
 
-  target.value = "Generiere...";
+  const competitorWarnings = getCompetitorDataWarnings();
+  showWarningsInTextarea(target, competitorWarnings);
+  target.value += "Generiere...";
   button.disabled = true;
 
   const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
@@ -577,12 +616,14 @@ $("extractPatterns").addEventListener("click", async () => {
   const target = $("patternAnalysis");
   const button = $("extractPatterns");
 
-  if (!sourceText.trim()) {
+    if (!sourceText.trim()) {
     target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
     return;
   }
 
-  target.value = "Generiere...";
+  const competitorWarnings = getCompetitorDataWarnings();
+  showWarningsInTextarea(target, competitorWarnings);
+  target.value += "Generiere...";
   button.disabled = true;
 
   const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
@@ -666,7 +707,7 @@ Regeln:
   const target = $("marketGapStrategy");
   const button = $("generateMarketStrategy");
 
-  if (!competitorBreakdown.trim()) {
+   if (!competitorBreakdown.trim()) {
     target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
     return;
   }
@@ -676,7 +717,9 @@ Regeln:
     return;
   }
 
-  target.value = "Generiere...";
+  const competitorWarnings = getCompetitorDataWarnings();
+  showWarningsInTextarea(target, competitorWarnings);
+  target.value += "Generiere...";
   button.disabled = true;
 
   const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
@@ -866,7 +909,21 @@ Regeln:
     source: "manual",
   };
 
-  if (!competitor.title) return;
+    if (!competitor.title) {
+    alert("Bitte mindestens einen Titel für das Wettbewerbsbuch eingeben.");
+    return;
+  }
+
+  if (
+    !competitor.description &&
+    !competitor.corePromiseGuess &&
+    !competitor.differentiationGuess
+  ) {
+    alert(
+      "Bitte füge für das Wettbewerbsbuch mindestens eine Beschreibung, ein zentrales Versprechen oder ein Differenzierungsmerkmal hinzu.",
+    );
+    return;
+  }
 
   state.competitors.push(competitor);
 
@@ -1250,7 +1307,18 @@ Regeln:
 - Die Positionierung muss zum Genre passen.
 - Das Ergebnis soll direkt als Grundlage für Titel, Outline und Writing dienen.`;
 
-  $("proposedBook").value = "Generiere...";
+   const pbWarnings = [];
+
+  if (!state.marketResearch?.marketGapStrategy && !$("marketGapStrategy")?.value.trim()) {
+    pbWarnings.push("Market Gap + USP Strategy fehlt. Das Proposed Book kann dadurch generischer werden.");
+  }
+
+  if (!state.marketResearch?.finalMarketAnalysis && !$("marketAnalysis")?.value.trim()) {
+    pbWarnings.push("Finale Marktanalyse fehlt. Positionierung und Selling Logic können dadurch schwächer sein.");
+  }
+
+  showWarningsInTextarea($("proposedBook"), pbWarnings);
+  $("proposedBook").value += "Generiere...";
 
   try {
     const out = await callTextModel(prompt);
@@ -1327,7 +1395,21 @@ Zusätzliche Regeln:
 Input:
 ${JSON.stringify(spec, null, 2)}`;
 
-    $("outline").value = "Generiere JSON...";
+        const outlineWarnings = [];
+
+    if (!$("proposedBook").value.trim()) {
+      outlineWarnings.push("Proposed Book fehlt. Die Outline kann dadurch generisch werden.");
+    }
+
+    if (
+      !state.marketResearch?.marketGapStrategy &&
+      !$("marketGapStrategy")?.value.trim()
+    ) {
+      outlineWarnings.push("Market Gap + USP Strategy fehlt. Die Outline kann dadurch marktunscharf werden.");
+    }
+
+    showWarningsInTextarea($("outline"), outlineWarnings);
+    $("outline").value += "Generiere JSON...";
     try {
       const out = await callTextModel(prompt, { system, json: true });
       const jsonText = extractFirstJsonObject(out);
@@ -1352,6 +1434,24 @@ ${JSON.stringify(spec, null, 2)}`;
       alert("Bitte zuerst Outline generieren.");
       return;
     }
+
+      const writingWarnings = [];
+
+  if (!state.proposedBook?.trim()) {
+    writingWarnings.push("Proposed Book fehlt. Die Kapitel können dadurch generischer werden.");
+  }
+
+  if (
+    !state.marketResearch?.marketGapStrategy &&
+    !$("marketGapStrategy")?.value.trim()
+  ) {
+    writingWarnings.push("Market Gap + USP Strategy fehlt. Die Kapitel können dadurch weniger differenziert sein.");
+  }
+
+  if (!state.persona?.trim()) {
+    writingWarnings.push("Persona fehlt. Stil und Stimme können dadurch uneinheitlich werden.");
+  }
+    
     const idx = state.currentSectionIndex;
     const sec = state.flatSections[idx];
     if (!sec) return;
@@ -1370,20 +1470,38 @@ const marketGapStrategy =
 const finalMarketAnalysis =
   state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
-const prompt = `Du bist ein professioneller Buchautor.
+const prompt = `Du bist ein professioneller Buchautor mit starkem Gespür für Marktpositionierung, Leserführung und nicht-generisches Schreiben.
 
 Aufgabe:
 Schreibe die nächste Buchsektion in deutscher Sprache.
 
-Regeln:
+Harte Anforderungen:
 - Keine Wiederholungen mit vorherigem Text.
-- Nutze Persona, Stance, Strategie-Briefing und Buchpositionierung konsequent.
+- Keine generischen Floskeln, keine leeren Motivationssätze, keine austauschbare KI-Sprache.
+- Keine allgemeinen Aussagen ohne konkrete Relevanz für dieses Buchprojekt.
+- Jede Passage muss einen klaren Mehrwert für Leser und Buchpositionierung liefern.
+- Nutze Persona, Stance, Strategie-Briefing, Proposed Book und Marktpositionierung konsequent.
 - Länge ungefähr ${sec.targetWords} Wörter.
 - Stil, Struktur und Sprache müssen zum Genre passen.
-- Schreibe substanziell, klar und konkret.
-- Unterstütze die Positionierung und USP des Buchs.
+- Unterstütze aktiv die USP und Differenzierung des Buchs.
 - Baue logisch auf vorherigem Text auf.
 - Ende mit einer kurzen natürlichen Brücke zur nächsten Sektion, wenn es passt.
+
+Anti-Generic-Regeln:
+- Schreibe nicht so, als könnte derselbe Abschnitt in jedem beliebigen Ratgeber stehen.
+- Vermeide Phrasen wie "In der heutigen Welt", "es ist wichtig zu verstehen", "letztendlich", "am Ende des Tages", sofern sie nicht wirklich nötig sind.
+- Vermeide inhaltsleere Einleitungen.
+- Liefere spezifische Gedanken, klare Beispiele, starke Kontraste oder konkrete Anwendungen.
+- Wenn ein Punkt offensichtlich oder Standardwissen ist, dann überspringe ihn oder mache ihn spezifisch für dieses Buch.
+- Jede Sektion soll eine erkennbare Funktion haben: erklären, reframen, kontrastieren, anwenden, vertiefen oder transformieren.
+
+Interne Qualitätskontrolle:
+Bevor du formulierst, prüfe still:
+1. Ist dieser Abschnitt spezifisch für dieses Buch?
+2. Unterstützt er die Marktpositionierung?
+3. Vermeidet er Wiederholung?
+4. Liefert er echte Substanz statt Standardwissen?
+5. Klingt er nach der Persona und dem Genre?
 
 GENRE:
 ${state.research.genre || "nicht angegeben"}
@@ -1419,17 +1537,6 @@ ${previous}
 
 RESSOURCEN:
 ${resourceContext}`;
-
-  const editPrompts = {
-    format: "Verbessere Grammatik, Struktur und Lesbarkeit ohne Sinnänderung.",
-    elaborate: "Elaboriere den Abschnitt mit mehr Tiefe, Beispielen und Nuancen.",
-    cta: "Füge einen starken motivierenden Call-to-Action am Ende hinzu.",
-    history: "Füge relevante historische Einordnung und Kontext hinzu.",
-    quote: "Ergänze ein passendes, glaubwürdiges Zitat (mit Kennzeichnung als Beispielzitat, falls unklar).",
-    source: "Ergänze belastbare Quellenhinweise und mache Unsicherheiten transparent.",
-    data: "Stärke den Abschnitt mit konkreten Datenpunkten und vorsichtiger Quellenangabe.",
-  };
-
   document.querySelectorAll("button[data-edit]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const txt = $("editorInput").value.trim();
