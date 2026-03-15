@@ -256,6 +256,135 @@ async function testOllamaConnection() {
   statusEl.textContent = `✅ Verbindung erfolgreich. Server erreichbar und Modell "${model}" antwortet.`;
 }
 
+async function suggestImagePlacements() {
+  if (!state.manuscriptSections.length) {
+    throw new Error("Bitte zuerst das Buch schreiben.");
+  }
+
+  const manuscript = state.manuscriptSections.join("\n\n").slice(0, 45000);
+  const outline = JSON.stringify(state.outline || {}, null, 2).slice(0, 12000);
+
+  const system = "Du antwortest nur als valides JSON.";
+  const prompt = `Du bist ein erfahrener Buchredakteur und Visual-Content-Strategist.
+
+Aufgabe:
+Analysiere das fertige Buchmanuskript und schlage sinnvolle Stellen für Bilder vor.
+
+Ziel:
+- nur dort Bilder empfehlen, wo sie den Leser wirklich unterstützen
+- keine dekorativen Füllbilder
+- pro Vorschlag direkt einen sehr guten Bildprompt erzeugen
+
+Gib JSON in genau diesem Schema zurück:
+{
+  "suggestions": [
+    {
+      "sectionIndex": 0,
+      "chapterTitle": "Kapitelname",
+      "sectionTitle": "Sektionsname",
+      "reason": "Warum ein Bild hier sinnvoll ist",
+      "anchorExcerpt": "Kurzer Auszug aus der Stelle",
+      "imageType": "illustration | diagram | infographic | scene",
+      "imagePrompt": "Fertiger Prompt für den Bildgenerator"
+    }
+  ]
+}
+
+Regeln:
+- maximal 8 Vorschläge
+- nur wirklich sinnvolle Bildstellen
+- der Prompt muss stilistisch zum Buch passen
+- wenn das Buch sachlich ist, eher Diagramme/Infografiken
+- wenn erzählerisch, eher Szenen/Illustrationen
+- keine zusätzlichen Erklärungen außerhalb des JSON
+
+OUTLINE:
+${outline}
+
+MANUSKRIPT:
+${manuscript}`;
+
+  const out = await callTextModel(prompt, { system, json: true, task: "writeSection" });
+  const jsonText = extractFirstJsonObject(out);
+  if (!jsonText) throw new Error("Bildvorschläge konnten nicht als JSON gelesen werden.");
+
+  const parsed = JSON.parse(jsonText);
+  state.imageSuggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
+  saveProjectToLocal();
+  renderImageSuggestions();
+}
+
+function renderImageSuggestions() {
+  const root = $("imageSuggestionList");
+  root.innerHTML = "";
+
+  state.imageSuggestions.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <strong>${item.chapterTitle || "Kapitel"}${item.sectionTitle ? ` – ${item.sectionTitle}` : ""}</strong>
+      <p><strong>Warum:</strong> ${item.reason || ""}</p>
+      <p><strong>Typ:</strong> ${item.imageType || ""}</p>
+      <p><strong>Textstelle:</strong> ${item.anchorExcerpt || ""}</p>
+      <textarea rows="4" data-image-prompt="${index}">${item.imagePrompt || ""}</textarea>
+      <div class="row">
+        <button data-generate-suggestion="${index}">Dieses Bild generieren</button>
+      </div>
+    `;
+    root.appendChild(card);
+  });
+
+  root.querySelectorAll("button[data-generate-suggestion]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const index = Number(btn.dataset.generateSuggestion);
+      const textarea = root.querySelector(`textarea[data-image-prompt="${index}"]`);
+      const prompt = textarea?.value?.trim();
+      if (!prompt) return;
+
+      try {
+        const url = await generateImage(prompt);
+        state.images.push({
+          type: "suggested",
+          prompt,
+          url,
+          suggestion: state.imageSuggestions[index],
+        });
+        renderImages();
+        saveProjectToLocal();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
+}
+
+$("suggestImagePlacements").addEventListener("click", async () => {
+  try {
+    await suggestImagePlacements();
+  } catch (e) {
+    alert(e.message);
+  }
+});
+
+$("generateSuggestedImages").addEventListener("click", async () => {
+  for (const suggestion of state.imageSuggestions) {
+    if (!suggestion?.imagePrompt) continue;
+    try {
+      const url = await generateImage(suggestion.imagePrompt);
+      state.images.push({
+        type: "suggested",
+        prompt: suggestion.imagePrompt,
+        url,
+        suggestion,
+      });
+    } catch (e) {
+      console.error("Bild konnte nicht generiert werden:", e.message);
+    }
+  }
+  renderImages();
+  saveProjectToLocal();
+});
+
 async function callTextModel(prompt, options = {}) {
   if (state.provider === "ollama") {
     return callOllama(prompt, options);
@@ -265,11 +394,9 @@ async function callTextModel(prompt, options = {}) {
   return callOpenAI(prompt, { ...options, model: selectedModel });
 }
 
-async function generateImage(prompt) {
-  if (state.provider !== "openai") {
-    throw new Error("Bildgenerierung ist aktuell nur mit OpenAI verfügbar. Bitte Provider wechseln.");
-  }
-  if (!state.apiKey) throw new Error("Bitte API-Key setzen.");
+async function generateImageWithOpenAI(prompt) {
+  if (!state.apiKey) throw new Error("Bitte OpenAI API-Key setzen.");
+
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -277,17 +404,88 @@ async function generateImage(prompt) {
       Authorization: `Bearer ${state.apiKey}`,
     },
     body: JSON.stringify({
+      model: state.imageModel || "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+    }),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`OpenAI Bild Fehler: ${res.status} ${msg}`);
+  }
+
+  const data = await res.json();
+  return `data:image/png;base64,${data.data[0].b64_json}`;
+}
+
+async function generateImageWithNanoBananaPro(prompt) {
+  if (!state.imageBaseUrl) {
+    throw new Error("Bitte Base URL für Nano Banana Pro setzen.");
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (state.imageApiKey) {
+    headers.Authorization = `Bearer ${state.imageApiKey}`;
+  }
+
+  const res = await fetch(`${state.imageBaseUrl.replace(/\/$/, "")}/images/generate`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
       model: state.imageModel,
       prompt,
       size: "1024x1024",
     }),
   });
+
   if (!res.ok) {
     const msg = await res.text();
-    throw new Error(`Bild Fehler: ${res.status} ${msg}`);
+    throw new Error(`Nano Banana Pro Bild Fehler: ${res.status} ${msg}`);
   }
+
   const data = await res.json();
-  return `data:image/png;base64,${data.data[0].b64_json}`;
+
+  if (data?.b64_json) {
+    return `data:image/png;base64,${data.b64_json}`;
+  }
+
+  if (data?.data?.[0]?.b64_json) {
+    return `data:image/png;base64,${data.data[0].b64_json}`;
+  }
+
+  if (data?.url) {
+    return data.url;
+  }
+
+  throw new Error("Nano Banana Pro hat kein unterstütztes Bildformat zurückgegeben.");
+}
+
+async function generateImage(prompt) {
+  const provider = $("imageProvider")?.value || state.imageProvider || "openai";
+
+  state.imageProvider = provider;
+  state.imageModel = $("imageModel")?.value?.trim() || state.imageModel;
+  state.imageApiKey = $("imageApiKey")?.value?.trim() || state.imageApiKey;
+  state.imageBaseUrl = $("imageBaseUrl")?.value?.trim() || state.imageBaseUrl;
+
+  localStorage.setItem("image_provider", state.imageProvider);
+  localStorage.setItem("image_model", state.imageModel || "");
+  localStorage.setItem("image_api_key", state.imageApiKey || "");
+  localStorage.setItem("image_base_url", state.imageBaseUrl || "");
+
+  if (provider === "openai") {
+    return generateImageWithOpenAI(prompt);
+  }
+
+  if (provider === "nanobananapro") {
+    return generateImageWithNanoBananaPro(prompt);
+  }
+
+  throw new Error(`Unbekannter Bildprovider: ${provider}`);
 }
 
 function download(filename, content, mime) {
@@ -305,6 +503,60 @@ function downloadBlob(filename, blob) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) {
+    throw new Error("PDF.js ist nicht geladen. Bitte index.html prüfen.");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = "";
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item) => item.str).join(" ");
+    fullText += `\n\n[Seite ${pageNum}]\n${pageText}`;
+  }
+
+  return fullText.trim();
+}
+
+async function extractFileResource(file) {
+  const lowerName = String(file.name || "").toLowerCase();
+
+  if (lowerName.endsWith(".pdf")) {
+    const pdfText = await extractPdfText(file);
+    return {
+      type: "pdf",
+      label: file.name,
+      content: pdfText.slice(0, 50000),
+    };
+  }
+
+  if (
+    lowerName.endsWith(".txt") ||
+    lowerName.endsWith(".md") ||
+    lowerName.endsWith(".json") ||
+    lowerName.endsWith(".csv") ||
+    lowerName.endsWith(".html")
+  ) {
+    const text = await file.text();
+    return {
+      type: "file",
+      label: file.name,
+      content: text.slice(0, 50000),
+    };
+  }
+
+  return {
+    type: "file",
+    label: file.name,
+    content: `[Datei ${file.name} konnte nicht automatisch extrahiert werden. Bitte relevante Passagen zusätzlich als Textnotiz einfügen.]`,
+  };
 }
 
 function escapeRegExp(str = "") {
@@ -1773,19 +2025,16 @@ Regeln:
     const out = await callTextModel(prompt, { task: "marketAnalysis" });
     target.value = (out || "").trim();
 
-    state.marketResearch = {
-      ...state.marketResearch,
-      competitorBreakdown: target.value,
-      patternAnalysis: "",
-      marketGapStrategy: "",
-      finalMarketAnalysis: "",
-      marketGapAnalysis: "",
-      uspStrategy: "",
-    };
+state.marketResearch = {
+  ...state.marketResearch,
+  finalMarketAnalysis: target.value,
+};
 
-    $("patternAnalysis").value = "";
-    $("marketGapStrategy").value = "";
-    $("marketAnalysis").value = "";
+saveProjectToLocal();
+
+if (!target.value) {
+  target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+}
 
     state.proposedBook = "";
     state.titles = [];
@@ -1823,12 +2072,14 @@ $("generateTitles").addEventListener("click", async () => {
   const finalMarketAnalysis =
     state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
+  const system = "Du antwortest nur als valides JSON.";
+
   const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
 
 Aufgabe:
-Generiere 10 starke, marktfähige Buchtitel für dieses Buchprojekt.
+Generiere 10 starke, marktfähige Titelvorschläge mit passendem Untertitel für dieses Buchprojekt.
 
-Die Titel sollen:
+Die Vorschläge sollen:
 - merkfähig
 - klar positioniert
 - nicht generisch
@@ -1856,43 +2107,69 @@ FINALE MARKTANALYSE:
 ${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
 
 Regeln:
-- Die Titel müssen die zentrale Idee oder Transformation des Buchs andeuten.
-- Die Titel sollen eine klare Positionierung im Markt erkennen lassen.
+- Jeder Vorschlag muss aus Haupttitel und Untertitel bestehen.
+- Der Haupttitel soll stark, merkfähig und marktfähig sein.
+- Der Untertitel soll Nutzen, Zielgruppe, Transformation oder Differenzierung des Buchs sichtbar machen.
 - Vermeide generische Titel wie "Der ultimative Guide".
-- Wenn es zum Genre passt, kombiniere Haupttitel + Untertitel.
-- Untertitel dürfen Nutzen, Zielgruppe oder Differenzierung klar machen.
-- Die Titel müssen zum Genre passen.
+- Die Titel müssen klar zum Genre passen.
+- Keine Nummerierung.
+- Keine Erklärung.
+- Kein Text außerhalb des JSON.
 
-Format:
-Nur Titelzeilen.
-
-Beispiel:
-Atomic Habits – Tiny Changes, Remarkable Results
-
-Keine Nummerierung.
-Keine Erklärung.
-Nur die Titel.`;
+Gib deine Antwort ausschließlich als valides JSON in genau diesem Format zurück:
+{
+  "titles": [
+    {
+      "title": "Haupttitel",
+      "subtitle": "Untertitel",
+      "fullTitle": "Haupttitel – Untertitel"
+    }
+  ]
+}`;
 
   const list = $("titleOptions");
   list.innerHTML = "<li>Generiere...</li>";
+
   try {
-const out = await callTextModel(prompt, { task: "titles" });
-    state.titles = out
-      .split("\n")
-      .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
-      .filter(Boolean)
-      .slice(0, 10);
+    const out = await callTextModel(prompt, {
+      system,
+      json: true,
+      task: "titles",
+    });
+
+    const jsonText = extractFirstJsonObject(out);
+    if (!jsonText) {
+      throw new Error("Titel-JSON konnte nicht gelesen werden.");
+    }
+
+    const parsed = JSON.parse(jsonText);
+    state.titles = Array.isArray(parsed?.titles) ? parsed.titles.slice(0, 10) : [];
+
+    if (!state.titles.length) {
+      throw new Error("Keine Titelvorschläge im JSON gefunden.");
+    }
+
     list.innerHTML = "";
-    state.titles.forEach((t) => {
+
+    state.titles.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = t;
+      li.innerHTML = `
+        <strong>${item.title || ""}</strong>
+        ${item.subtitle ? `<br /><small>${item.subtitle}</small>` : ""}
+      `;
+
       li.addEventListener("click", () => {
-        $("bookTitle").value = t;
+        $("bookTitle").value = item.title || "";
+        if ($("bookSubtitle")) {
+          $("bookSubtitle").value = item.subtitle || "";
+        }
         readResearchForm();
         saveProjectToLocal();
       });
+
       list.appendChild(li);
     });
+
     saveProjectToLocal();
   } catch (e) {
     list.innerHTML = `<li>${e.message}</li>`;
