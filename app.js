@@ -1815,7 +1815,7 @@ Nur die Titel.`;
   const list = $("titleOptions");
   list.innerHTML = "<li>Generiere...</li>";
   try {
-    const out = await callTextModel(prompt, { task: "description" });
+const out = await callTextModel(prompt, { task: "titles" });
     state.titles = out
       .split("\n")
       .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
@@ -2429,7 +2429,7 @@ Regeln:
   $("bookDescription").value = "Generiere...";
 
   try {
-    const out = await callTextModel(prompt, { task: "titles" });
+    const out = await callTextModel(prompt, { task: "description" });
     state.description = out;
     $("bookDescription").value = out;
     saveProjectToLocal();
