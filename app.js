@@ -1445,7 +1445,7 @@ $("generateOutline").addEventListener("click", async () => {
       
 };
 
-const structureInstructions = getStructureInstructions(structure);
+const structureInstructions = getStructureInstructions(spec.structure);
 
 const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
 const prompt = `Erstelle ein JSON mit diesem Schema:
@@ -1491,6 +1491,9 @@ Zusätzliche Regeln:
 - Die Kapitel sollen so aufgebaut sein, dass sie später starke, nicht generische Buchsektionen ermöglichen
 - Vermeide austauschbare Kapitel wie "Einführung", "Grundlagen", "Fazit", wenn sie nicht wirklich strategisch nötig sind
 
+EMPFOHLENE KAPITELLOGIK FÜR DIE GEWÄHLTE STRUKTUR:
+${structureInstructions}
+
 Input:
 ${JSON.stringify(spec, null, 2)}`;
 
@@ -1524,8 +1527,11 @@ ${JSON.stringify(spec, null, 2)}`;
 
       const report = getOutlineTargetWordsReport(normalized, spec.targetWords);
 
-      state.outline = normalized;
-      state.flatSections = parseOutlineToFlatSections(normalized);
+      state.outline = {
+        ...normalized,
+        structure: spec.structure,
+      };
+      state.flatSections = parseOutlineToFlatSections(state.outline);
       state.currentSectionIndex = 0;
       state.manuscriptSections = [];
 
@@ -1649,6 +1655,9 @@ GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
+
+BUCHSTRUKTUR:
+${getStructureInstructions(state.outline?.structure || $("structure")?.value?.trim() || "")}
 
 BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
