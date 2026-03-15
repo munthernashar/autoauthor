@@ -277,6 +277,131 @@ function splitParagraphs(text = "") {
     .filter(Boolean);
 }
 
+function markdownToRuns(text = "", options = {}) {
+  const TextRun = window.docx?.TextRun;
+  if (!TextRun) return [];
+
+  const {
+    font = "Garamond",
+    size = 22,
+    bold = false,
+    italics = false,
+    allCaps = false,
+  } = options;
+
+  const runs = [];
+  const pattern = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(
+        new TextRun({
+          text: text.slice(lastIndex, match.index),
+          font,
+          size,
+          bold,
+          italics,
+          allCaps,
+        }),
+      );
+    }
+
+    const token = match[0];
+    let tokenText = token;
+    let tokenBold = bold;
+    let tokenItalics = italics;
+
+    if (token.startsWith("***") && token.endsWith("***")) {
+      tokenText = token.slice(3, -3);
+      tokenBold = true;
+      tokenItalics = true;
+    } else if (token.startsWith("**") && token.endsWith("**")) {
+      tokenText = token.slice(2, -2);
+      tokenBold = true;
+    } else if (token.startsWith("*") && token.endsWith("*")) {
+      tokenText = token.slice(1, -1);
+      tokenItalics = true;
+    }
+
+    runs.push(
+      new TextRun({
+        text: tokenText,
+        font,
+        size,
+        bold: tokenBold,
+        italics: tokenItalics,
+        allCaps,
+      }),
+    );
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push(
+      new TextRun({
+        text: text.slice(lastIndex),
+        font,
+        size,
+        bold,
+        italics,
+        allCaps,
+      }),
+    );
+  }
+
+  if (!runs.length) {
+    runs.push(
+      new TextRun({
+        text,
+        font,
+        size,
+        bold,
+        italics,
+        allCaps,
+      }),
+    );
+  }
+
+  return runs;
+}
+
+function makeDocParagraph(text = "", options = {}) {
+  const Paragraph = window.docx?.Paragraph;
+  if (!Paragraph) return null;
+
+  const {
+    alignment,
+    spacingAfter = 0,
+    line = 300,
+    firstLine = 0,
+    font = "Garamond",
+    size = 22,
+    bold = false,
+    italics = false,
+    allCaps = false,
+  } = options;
+
+  return new Paragraph({
+    alignment,
+    spacing: {
+      after: spacingAfter,
+      line,
+    },
+    indent: firstLine ? { firstLine } : undefined,
+    children: markdownToRuns(text, {
+      font,
+      size,
+      bold,
+      italics,
+      allCaps,
+    }),
+  });
+}
+
 async function buildKdpDocxBlob() {
   if (!window.docx) {
     throw new Error("DOCX Bibliothek nicht geladen. Bitte index.html prüfen.");
@@ -291,7 +416,6 @@ async function buildKdpDocxBlob() {
     AlignmentType,
     PageBreak,
     TableOfContents,
-    WidthType,
   } = window.docx;
 
   const bookTitle = state.research.bookTitle || "Untitled";
@@ -308,12 +432,13 @@ async function buildKdpDocxBlob() {
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 4000, after: 400 },
+      spacing: { before: 4200, after: 320 },
       children: [
         new TextRun({
           text: bookTitle,
           bold: true,
-          size: 34,
+          font: "Garamond",
+          size: 32,
         }),
       ],
     }),
@@ -327,6 +452,7 @@ async function buildKdpDocxBlob() {
         children: [
           new TextRun({
             text: authorName,
+            font: "Garamond",
             size: 24,
           }),
         ],
@@ -383,15 +509,28 @@ async function buildKdpDocxBlob() {
   children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
       spacing: { after: 240 },
-      children: [new TextRun({ text: "WIDMUNG", bold: true, allCaps: true })],
+      children: [
+        new TextRun({
+          text: "WIDMUNG",
+          bold: true,
+          allCaps: true,
+          font: "Garamond",
+          size: 24,
+        }),
+      ],
     }),
   );
 
   children.push(
-    new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: dedication || " " })],
+    makeDocParagraph(dedication || " ", {
+      alignment: AlignmentType.JUSTIFIED,
+      spacingAfter: 120,
+      line: 300,
+      firstLine: 420,
+      font: "Garamond",
+      size: 22,
     }),
   );
 
@@ -426,9 +565,13 @@ async function buildKdpDocxBlob() {
   );
 
   children.push(
-    new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: acknowledgements || " " })],
+    makeDocParagraph(acknowledgements || " ", {
+      alignment: AlignmentType.JUSTIFIED,
+      spacingAfter: 120,
+      line: 300,
+      firstLine: 420,
+      font: "Garamond",
+      size: 22,
     }),
   );
 
@@ -449,13 +592,15 @@ async function buildKdpDocxBlob() {
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
-          spacing: { before: 200, after: 220 },
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 140 },
           children: [
             new TextRun({
               text: `KAPITEL ${(sec.cIdx ?? 0) + 1}`,
               bold: true,
               allCaps: true,
-              size: 28,
+              font: "Garamond",
+              size: 24,
             }),
           ],
         }),
@@ -464,12 +609,14 @@ async function buildKdpDocxBlob() {
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
           spacing: { after: 260 },
           children: [
             new TextRun({
               text: sec.chapterTitle || `Kapitel ${(sec.cIdx ?? 0) + 1}`,
               bold: true,
-              size: 26,
+              font: "Garamond",
+              size: 28,
             }),
           ],
         }),
@@ -478,19 +625,16 @@ async function buildKdpDocxBlob() {
 
     splitParagraphs(body).forEach((para) => {
       children.push(
-        new Paragraph({
-          spacing: { after: 180, line: 360 },
+        makeDocParagraph(para, {
           alignment: AlignmentType.JUSTIFIED,
-          children: [
-            new TextRun({
-              text: para,
-              size: 24,
-            }),
-          ],
+          spacingAfter: 0,
+          line: 300,
+          firstLine: 420,
+          font: "Garamond",
+          size: 22,
         }),
       );
     });
-  });
 
   if (description) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -504,10 +648,13 @@ async function buildKdpDocxBlob() {
 
     splitParagraphs(description).forEach((para) => {
       children.push(
-        new Paragraph({
-          spacing: { after: 180, line: 360 },
+        makeDocParagraph(para, {
           alignment: AlignmentType.JUSTIFIED,
-          children: [new TextRun({ text: para, size: 24 })],
+          spacingAfter: 0,
+          line: 300,
+          firstLine: 420,
+          font: "Garamond",
+          size: 22,
         }),
       );
     });
@@ -525,10 +672,13 @@ async function buildKdpDocxBlob() {
   );
 
   children.push(
-    new Paragraph({
-      spacing: { after: 180, line: 360 },
+    makeDocParagraph(authorBio || authorName || " ", {
       alignment: AlignmentType.JUSTIFIED,
-      children: [new TextRun({ text: authorBio || authorName || " " , size: 24 })],
+      spacingAfter: 0,
+      line: 300,
+      firstLine: 420,
+      font: "Garamond",
+      size: 22,
     }),
   );
 
@@ -540,11 +690,11 @@ async function buildKdpDocxBlob() {
       default: {
         document: {
           run: {
-            font: "Times New Roman",
-            size: 24,
+            font: "Garamond",
+            size: 22,
           },
           paragraph: {
-            spacing: { after: 180, line: 360 },
+            spacing: { after: 0, line: 300 },
           },
         },
       },
@@ -559,9 +709,9 @@ async function buildKdpDocxBlob() {
             },
             margin: {
               top: 1134,
-              right: 1134,
+              right: 992,
               bottom: 1134,
-              left: 1134,
+              left: 1417,
             },
           },
         },
