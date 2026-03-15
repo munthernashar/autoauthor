@@ -536,7 +536,7 @@ $("analyzeCompetitors").addEventListener("click", async () => {
   const target = $("competitorBreakdown");
   const button = $("analyzeCompetitors");
 
-   if (!state.competitors.length) {
+  if (!state.competitors.length) {
     target.value = "Bitte zuerst mindestens ein Wettbewerbsbuch hinzufügen.";
     return;
   }
@@ -616,7 +616,7 @@ $("extractPatterns").addEventListener("click", async () => {
   const target = $("patternAnalysis");
   const button = $("extractPatterns");
 
-    if (!sourceText.trim()) {
+  if (!sourceText.trim()) {
     target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
     return;
   }
@@ -697,7 +697,7 @@ Regeln:
   }
 });
 
-  $("generateMarketStrategy").addEventListener("click", async () => {
+$("generateMarketStrategy").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
@@ -707,7 +707,7 @@ Regeln:
   const target = $("marketGapStrategy");
   const button = $("generateMarketStrategy");
 
-   if (!competitorBreakdown.trim()) {
+  if (!competitorBreakdown.trim()) {
     target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
     return;
   }
@@ -802,33 +802,8 @@ Regeln:
     button.disabled = false;
   }
 });
-  
-    saveProjectToLocal();
 
-    if (!target.value) {
-      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-    }
-  } catch (e) {
-    target.value = e.message;
-  } finally {
-    button.disabled = false;
-  }
-});
-
-
-    saveProjectToLocal();
-
-    if (!target.value) {
-      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-    }
-  } catch (e) {
-    target.value = e.message;
-  } finally {
-    button.disabled = false;
-  }
-});
-  
-  $("generateResearchStrategy").addEventListener("click", async () => {
+$("generateResearchStrategy").addEventListener("click", async () => {
   readResearchForm();
 
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
@@ -878,7 +853,7 @@ Regeln:
   }
 });
 
- $("addCompetitor").addEventListener("click", () => {
+$("addCompetitor").addEventListener("click", () => {
   const competitor = {
     title: $("competitorTitle").value.trim(),
     author: $("competitorAuthor").value.trim(),
@@ -909,7 +884,7 @@ Regeln:
     source: "manual",
   };
 
-    if (!competitor.title) {
+  if (!competitor.title) {
     alert("Bitte mindestens einen Titel für das Wettbewerbsbuch eingeben.");
     return;
   }
@@ -967,8 +942,10 @@ $("analyzeMarket").addEventListener("click", async () => {
   const button = $("analyzeMarket");
 
   if (state.competitors.length < 3) {
-  target.value = "⚠️ Hinweis: Für eine aussagekräftige Marktanalyse werden mindestens 3 Wettbewerbsbücher empfohlen.\n\n";
-}
+    target.value = "⚠️ Hinweis: Für eine aussagekräftige Marktanalyse werden mindestens 3 Wettbewerbsbücher empfohlen.\n\n";
+  } else {
+    target.value = "";
+  }
 
   target.value += "Generiere...";
   button.disabled = true;
@@ -1061,8 +1038,6 @@ Regeln:
     button.disabled = false;
   }
 });
-
-  $("generateTitles").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
