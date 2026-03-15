@@ -484,6 +484,37 @@ function showWarningsInTextarea(el, warnings = []) {
   return true;
 }
 
+function resetDerivedMarketResearch() {
+  state.marketResearch = {
+    ...state.marketResearch,
+    competitorBreakdown: "",
+    patternAnalysis: "",
+    marketGapStrategy: "",
+    finalMarketAnalysis: "",
+    marketGapAnalysis: "",
+    uspStrategy: "",
+  };
+
+  $("competitorBreakdown").value = "";
+  $("patternAnalysis").value = "";
+  $("marketGapStrategy").value = "";
+  $("marketAnalysis").value = "";
+
+  state.proposedBook = "";
+  state.titles = [];
+  state.outline = null;
+  state.flatSections = [];
+  state.currentSectionIndex = 0;
+  state.manuscriptSections = [];
+
+  $("proposedBook").value = "";
+  $("titleOptions").innerHTML = "";
+  $("outline").value = "";
+  $("currentSection").value = "";
+  $("manuscript").value = "";
+  refreshWritingView();
+}
+
 function bindEvents() {
   $("provider").addEventListener("change", () => {
     state.provider = $("provider").value;
@@ -612,7 +643,7 @@ $("extractPatterns").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
+  const sourceText = $("competitorBreakdown").value.trim();
   const target = $("patternAnalysis");
   const button = $("extractPatterns");
 
@@ -701,8 +732,8 @@ $("generateMarketStrategy").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
-  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
+  const competitorBreakdown = $("competitorBreakdown").value.trim();
+  const patternAnalysis = $("patternAnalysis").value.trim();
 
   const target = $("marketGapStrategy");
   const button = $("generateMarketStrategy");
@@ -902,6 +933,8 @@ $("addCompetitor").addEventListener("click", () => {
 
   state.competitors.push(competitor);
 
+  resetDerivedMarketResearch();
+
   $("competitorTitle").value = "";
   $("competitorAuthor").value = "";
   $("competitorSubtitle").value = "";
@@ -931,12 +964,9 @@ $("analyzeMarket").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const competitorBreakdown =
-    state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
-  const patternAnalysis =
-    state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
-  const marketGapStrategy =
-    state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "";
+  const competitorBreakdown = $("competitorBreakdown").value.trim();
+  const patternAnalysis = $("patternAnalysis").value.trim();
+  const marketGapStrategy = $("marketGapStrategy").value.trim();
 
   const target = $("marketAnalysis");
   const button = $("analyzeMarket");
@@ -1024,14 +1054,37 @@ Regeln:
 
     state.marketResearch = {
       ...state.marketResearch,
-      finalMarketAnalysis: target.value,
+      competitorBreakdown: target.value,
+      patternAnalysis: "",
+      marketGapStrategy: "",
+      finalMarketAnalysis: "",
+      marketGapAnalysis: "",
+      uspStrategy: "",
     };
+
+    $("patternAnalysis").value = "";
+    $("marketGapStrategy").value = "";
+    $("marketAnalysis").value = "";
+
+    state.proposedBook = "";
+    state.titles = [];
+    state.outline = null;
+    state.flatSections = [];
+    state.currentSectionIndex = 0;
+    state.manuscriptSections = [];
+
+    $("proposedBook").value = "";
+    $("titleOptions").innerHTML = "";
+    $("outline").value = "";
+    $("currentSection").value = "";
+    $("manuscript").value = "";
+    refreshWritingView();
+
+    saveProjectToLocal();
 
     if (!target.value) {
       target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
     }
-
-    saveProjectToLocal();
   } catch (e) {
     target.value = e.message;
   } finally {
@@ -1199,14 +1252,9 @@ $("generateProposedBook").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const patternAnalysis =
-    state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
-
-  const marketGapStrategy =
-    state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "";
-
-  const finalMarketAnalysis =
-    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis").value || "";
+  const patternAnalysis = $("patternAnalysis").value.trim();
+  const marketGapStrategy = $("marketGapStrategy").value.trim();
+  const finalMarketAnalysis = $("marketAnalysis").value.trim();
 
   const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
 
@@ -1324,8 +1372,8 @@ $("generateOutline").addEventListener("click", async () => {
   genreInstructions: getGenrePromptInstructions(state.research.genre),
   persona: state.persona,
   proposedBook: $("proposedBook").value,
-  marketGapStrategy: state.marketResearch?.marketGapStrategy || $("marketGapStrategy").value || "",
-  finalMarketAnalysis: state.marketResearch?.finalMarketAnalysis || $("marketAnalysis").value || "",
+  marketGapStrategy: $("marketGapStrategy").value.trim(),
+  finalMarketAnalysis: $("marketAnalysis").value.trim(),
   resources: state.resources.slice(0, 30),
 };
 
