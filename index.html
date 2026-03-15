@@ -291,11 +291,35 @@
 
       <section class="card">
         <h2>10) Bilder & Cover</h2>
+      
+        <div class="grid two">
+          <label>Bild-Provider
+            <select id="imageProvider">
+              <option value="openai">OpenAI</option>
+              <option value="nanobananapro">Nano Banana Pro</option>
+            </select>
+          </label>
+          <label>Bildmodell
+            <input id="imageModel" value="gpt-image-1" />
+          </label>
+          <label>Bild API Key (optional je nach Provider)
+            <input id="imageApiKey" type="password" autocomplete="off" />
+          </label>
+          <label>Bild Base URL (optional je nach Provider)
+            <input id="imageBaseUrl" placeholder="https://api.example.com" />
+          </label>
+        </div>
+      
         <textarea id="imagePrompt" rows="3" placeholder="Prompt für Innenbild / Diagramm"></textarea>
-        <div class="row">
+      
+        <div class="row wrap">
           <button id="generateImage">Bild generieren</button>
           <button id="generateCover">Cover generieren</button>
+          <button id="suggestImagePlacements">Bildstellen vorschlagen</button>
+          <button id="generateSuggestedImages">Vorgeschlagene Bilder generieren</button>
         </div>
+      
+        <div id="imageSuggestionList"></div>
         <div id="imageResults" class="images"></div>
       </section>
 
