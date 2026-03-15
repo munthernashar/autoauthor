@@ -1,7 +1,3 @@
-Hier ist eine **sauber formatierte README.md**, die du **direkt komplett kopieren und in dein Repo einfügen kannst**.
-
----
-
 # AutoAuthor AI
 
 AutoAuthor AI ist eine **statische Web-App für den kompletten Buch-Workflow im Browser**:
