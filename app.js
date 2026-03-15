@@ -222,6 +222,357 @@ function download(filename, content, mime) {
   URL.revokeObjectURL(a.href);
 }
 
+function downloadBlob(filename, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function escapeRegExp(str = "") {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractSectionBody(sec, rawText) {
+  let text = String(rawText || "").trim();
+  if (!text) return "";
+
+  const lines = text.split("\n").map((line) => line.trim());
+  const filtered = [];
+
+  for (const line of lines) {
+    if (!line) {
+      filtered.push("");
+      continue;
+    }
+
+    if (/^KAPITEL\s+\d+$/i.test(line)) continue;
+    if (sec.chapterTitle && line === sec.chapterTitle.trim()) continue;
+    if (sec.sectionTitle && line === sec.sectionTitle.trim()) continue;
+    if (/^⚠️ Ziel ca\./.test(line)) continue;
+
+    filtered.push(line);
+  }
+
+  text = filtered.join("\n").trim();
+
+  if (sec.chapterTitle) {
+    const chapterPattern = new RegExp(`^${escapeRegExp(sec.chapterTitle.trim())}\\s*`, "i");
+    text = text.replace(chapterPattern, "").trim();
+  }
+
+  if (sec.sectionTitle) {
+    const sectionPattern = new RegExp(`^${escapeRegExp(sec.sectionTitle.trim())}\\s*`, "i");
+    text = text.replace(sectionPattern, "").trim();
+  }
+
+  return text.trim();
+}
+
+function splitParagraphs(text = "") {
+  return String(text)
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+async function buildKdpDocxBlob() {
+  if (!window.docx) {
+    throw new Error("DOCX Bibliothek nicht geladen. Bitte index.html prüfen.");
+  }
+
+  const {
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    HeadingLevel,
+    AlignmentType,
+    PageBreak,
+    TableOfContents,
+    WidthType,
+  } = window.docx;
+
+  const bookTitle = state.research.bookTitle || "Untitled";
+  const authorName = state.research.authorName || "";
+  const description = state.description || "";
+  const isbn = $("isbn")?.value?.trim?.() || "";
+  const dedication = $("dedication")?.value?.trim?.() || "";
+  const acknowledgements = $("acknowledgements")?.value?.trim?.() || "";
+  const authorBio = $("authorBio")?.value?.trim?.() || "";
+
+  const children = [];
+
+  // Titelblatt
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 4000, after: 400 },
+      children: [
+        new TextRun({
+          text: bookTitle,
+          bold: true,
+          size: 34,
+        }),
+      ],
+    }),
+  );
+
+  if (authorName) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+        children: [
+          new TextRun({
+            text: authorName,
+            size: 24,
+          }),
+        ],
+      }),
+    );
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Copyright
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 },
+      children: [new TextRun({ text: "Copyright", bold: true })],
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 160 },
+      children: [
+        new TextRun({
+          text: `Copyright © ${new Date().getFullYear()} ${authorName || "Name des Autors"}`,
+        }),
+      ],
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 160 },
+      children: [
+        new TextRun({
+          text: "Alle Rechte vorbehalten.",
+        }),
+      ],
+    }),
+  );
+
+  if (isbn) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [new TextRun({ text: `ISBN: ${isbn}` })],
+      }),
+    );
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Widmung
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "WIDMUNG", bold: true, allCaps: true })],
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: dedication || " " })],
+    }),
+  );
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Inhaltsverzeichnis
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "INHALT", bold: true, allCaps: true })],
+    }),
+  );
+
+  children.push(
+    new TableOfContents("Inhaltsverzeichnis", {
+      hyperlink: true,
+      headingStyleRange: "1-2",
+      rightTabStop: 9000,
+    }),
+  );
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Danksagung
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "DANKSAGUNG", bold: true, allCaps: true })],
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: acknowledgements || " " })],
+    }),
+  );
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Kapitel
+  let currentChapterIdx = -1;
+
+  state.flatSections.forEach((sec, index) => {
+    const rawSection = state.manuscriptSections[index] || "";
+    const body = extractSectionBody(sec, rawSection);
+
+    if (!body) return;
+
+    if (sec.cIdx !== currentChapterIdx) {
+      currentChapterIdx = sec.cIdx;
+
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 200, after: 220 },
+          children: [
+            new TextRun({
+              text: `KAPITEL ${(sec.cIdx ?? 0) + 1}`,
+              bold: true,
+              allCaps: true,
+              size: 28,
+            }),
+          ],
+        }),
+      );
+
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: { after: 260 },
+          children: [
+            new TextRun({
+              text: sec.chapterTitle || `Kapitel ${(sec.cIdx ?? 0) + 1}`,
+              bold: true,
+              size: 26,
+            }),
+          ],
+        }),
+      );
+    }
+
+    splitParagraphs(body).forEach((para) => {
+      children.push(
+        new Paragraph({
+          spacing: { after: 180, line: 360 },
+          alignment: AlignmentType.JUSTIFIED,
+          children: [
+            new TextRun({
+              text: para,
+              size: 24,
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
+  if (description) {
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        spacing: { after: 240 },
+        children: [new TextRun({ text: "BUCHBESCHREIBUNG", bold: true, allCaps: true })],
+      }),
+    );
+
+    splitParagraphs(description).forEach((para) => {
+      children.push(
+        new Paragraph({
+          spacing: { after: 180, line: 360 },
+          alignment: AlignmentType.JUSTIFIED,
+          children: [new TextRun({ text: para, size: 24 })],
+        }),
+      );
+    });
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // Über den Autor
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "ÜBER DEN AUTOR", bold: true, allCaps: true })],
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 180, line: 360 },
+      alignment: AlignmentType.JUSTIFIED,
+      children: [new TextRun({ text: authorBio || authorName || " " , size: 24 })],
+    }),
+  );
+
+  const doc = new Document({
+    creator: authorName || "AutoAuthor",
+    title: bookTitle,
+    description: "KDP-ready DOCX export",
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: "Times New Roman",
+            size: 24,
+          },
+          paragraph: {
+            spacing: { after: 180, line: 360 },
+          },
+        },
+      },
+    },
+    sections: [
+      {
+        properties: {
+          page: {
+            size: {
+              width: 12240,
+              height: 15840,
+            },
+            margin: {
+              top: 1134,
+              right: 1134,
+              bottom: 1134,
+              left: 1134,
+            },
+          },
+        },
+        children,
+      },
+    ],
+  });
+
+  return Packer.toBlob(doc);
+}
+
 function readResearchForm() {
   state.research = {
     bookTitle: $("bookTitle").value.trim(),
@@ -1869,18 +2220,19 @@ $("downloadMarkdown").addEventListener("click", () => {
     download("bookforge-manuscript.md", md, "text/markdown;charset=utf-8");
 });
 
-$("downloadDocHtml").addEventListener("click", () => {
-    readResearchForm();
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${
-      state.research.bookTitle || "Book"
-    }</title></head><body><h1>${state.research.bookTitle || "Untitled"}</h1><h2>${
-      state.research.authorName || ""
-    }</h2><pre>${state.manuscriptSections.join("\n\n").replace(/[<>&]/g, (m) => ({
-      "<": "&lt;",
-      ">": "&gt;",
-      "&": "&amp;",
-    }[m]))}</pre></body></html>`;
-    download("bookforge-manuscript.doc", html, "application/msword");
+$("downloadDocHtml").addEventListener("click", async () => {
+  readResearchForm();
+
+  try {
+    const blob = await buildKdpDocxBlob();
+    const safeTitle = (state.research.bookTitle || "bookforge-manuscript")
+      .replace(/[\\/:*?"<>|]+/g, "")
+      .trim();
+
+    downloadBlob(`${safeTitle || "bookforge-manuscript"}.docx`, blob);
+  } catch (e) {
+    alert(`DOCX Export fehlgeschlagen: ${e.message}`);
+  }
 });
 
 $("saveProjectJson").addEventListener("click", () => {
