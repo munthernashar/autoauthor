@@ -1579,11 +1579,15 @@ ${resourceContext}`;
 
     refreshWritingView();
     saveProjectToLocal();
-  } catch (e) {
+   } catch (e) {
     $("currentSection").value = e.message;
   }
 }
-  $("customEditBtn").addEventListener("click", async () => {
+
+$("generateNextSection").addEventListener("click", () => writeSection(false));
+$("rewriteCurrent").addEventListener("click", () => writeSection(true));
+
+$("customEditBtn").addEventListener("click", async () => {
     const txt = $("editorInput").value.trim();
     const custom = $("customEditPrompt").value.trim();
     if (!txt || !custom) return;
