@@ -760,81 +760,6 @@ Regeln:
   }
 });
   
-$("extractPatterns").addEventListener("click", async () => {
-  readResearchForm();
-  const genreInstructions = getGenrePromptInstructions(state.research.genre);
-
-  const sourceText = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
-  const target = $("patternAnalysis");
-  const button = $("extractPatterns");
-
-  if (!sourceText.trim()) {
-    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
-    return;
-  }
-
-  target.value = "Generiere...";
-  button.disabled = true;
-
-  const prompt = `Du bist ein erfahrener Buchmarkt-Analyst.
-
-Aufgabe:
-Extrahiere aus den folgenden Einzelanalysen von Wettbewerbsbüchern die wichtigsten Markt-Muster.
-
-NEUES BUCHPROJEKT:
-${JSON.stringify(state.research, null, 2)}
-
-RESEARCH-STRATEGIE:
-${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
-
-GENRE:
-${state.research.genre || "nicht angegeben"}
-
-${genreInstructions}
-
-COMPETITOR BREAKDOWN:
-${sourceText}
-
-Liefere die Ausgabe in dieser Struktur:
-
-# Pattern Extraction
-
-## Dominant Market Patterns
-- Welche Marktansätze dominieren?
-
-## Repeated Promises
-- Welche Versprechen wiederholen sich?
-
-## Repeated Audience Targeting
-- Welche Zielgruppen werden immer wieder angesprochen?
-
-## Tone Patterns
-- Welche Tonalitäten dominieren?
-
-## Structure Patterns
-- Welche Buchstrukturen oder Aufbau-Logiken wiederholen sich?
-
-## Differentiation Patterns
-- Welche Differenzierungsansätze kommen oft vor?
-
-## Overused Angles
-- Welche Blickwinkel oder Positionierungen wirken austauschbar oder übernutzt?
-
-Regeln:
-- Arbeite nur mit den gelieferten Daten.
-- Fasse präzise zusammen.
-- Erfinde keine Marktbelege.
-- Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
-
-  try {
-    const out = await callTextModel(prompt);
-    target.value = (out || "").trim();
-
-    state.marketResearch = {
-      ...state.marketResearch,
-      patternAnalysis: target.value,
-    };
-
     saveProjectToLocal();
 
     if (!target.value) {
@@ -847,97 +772,6 @@ Regeln:
   }
 });
 
-$("generateMarketStrategy").addEventListener("click", async () => {
-  readResearchForm();
-  const genreInstructions = getGenrePromptInstructions(state.research.genre);
-
-  const competitorBreakdown = state.marketResearch?.competitorBreakdown || $("competitorBreakdown").value || "";
-  const patternAnalysis = state.marketResearch?.patternAnalysis || $("patternAnalysis").value || "";
-
-  const target = $("marketGapStrategy");
-  const button = $("generateMarketStrategy");
-
-  if (!competitorBreakdown.trim()) {
-    target.value = "Bitte zuerst 'Wettbewerber analysieren' ausführen.";
-    return;
-  }
-
-  if (!patternAnalysis.trim()) {
-    target.value = "Bitte zuerst 'Muster extrahieren' ausführen.";
-    return;
-  }
-
-  target.value = "Generiere...";
-  button.disabled = true;
-
-  const prompt = `Du bist ein erfahrener Buch-Positionierungsstratege.
-
-Aufgabe:
-Entwickle aus Projekt, Research-Strategie, Competitor Breakdown und Pattern Extraction
-eine starke Marktpositionierung für das neue Buch.
-
-NEUES BUCHPROJEKT:
-${JSON.stringify(state.research, null, 2)}
-
-RESEARCH-STRATEGIE:
-${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
-
-GENRE:
-${state.research.genre || "nicht angegeben"}
-
-${genreInstructions}
-
-COMPETITOR BREAKDOWN:
-${competitorBreakdown}
-
-PATTERN EXTRACTION:
-${patternAnalysis}
-
-Liefere die Ausgabe in dieser Struktur:
-
-# Market Gap + USP Strategy
-
-## Market Gap
-- Welche echte Lücke oder Chance ist im Markt sichtbar?
-
-## Reader Opportunity
-- Welches Leserproblem ist nicht gut gelöst?
-- Welcher Leserwunsch wird noch nicht stark genug bedient?
-
-## Positioning Strategy
-- Wie sollte das neue Buch im Markt positioniert werden?
-
-## Unique Selling Proposition
-- Formuliere eine klare USP für das neue Buch.
-
-## What to Borrow
-- Was sollte vom Markt gelernt oder übernommen werden?
-
-## What to Avoid
-- Was sollte vermieden werden?
-
-## What to Do Differently
-- Was sollte das neue Buch bewusst anders machen?
-
-## Key Selling Points
-- Formuliere 5 bis 7 konkrete Key Selling Points.
-
-Regeln:
-- Bleibe marktorientiert und konkret.
-- Keine generischen Floskeln.
-- Keine erfundenen Bestseller-Fakten.
-- Positionierung muss zum Genre passen.`;
-
-  try {
-    const out = await callTextModel(prompt);
-    target.value = (out || "").trim();
-
-    state.marketResearch = {
-      ...state.marketResearch,
-      marketGapStrategy: target.value,
-      marketGapAnalysis: target.value,
-      uspStrategy: target.value,
-    };
 
     saveProjectToLocal();
 
@@ -1159,17 +993,6 @@ Regeln:
       finalMarketAnalysis: target.value,
     };
 
-    if (!target.value) {
-      target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-    }
-
-    saveProjectToLocal();
-  } catch (e) {
-    target.value = e.message;
-  } finally {
-    button.disabled = false;
-  }
-});
     if (!target.value) {
       target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
     }
@@ -1502,71 +1325,63 @@ ${JSON.stringify(spec, null, 2)}`;
       .join("\n\n")
       .slice(0, 12000);
 
-    const genreInstructions = getGenrePromptInstructions(state.research.genre);
+   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-const prompt = `Schreibe die nächste Buchsektion in deutscher Sprache.
+const proposedBook = state.proposedBook || "";
+const marketGapStrategy =
+  state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
+const finalMarketAnalysis =
+  state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+
+const prompt = `Du bist ein professioneller Buchautor.
+
+Aufgabe:
+Schreibe die nächste Buchsektion in deutscher Sprache.
 
 Regeln:
 - Keine Wiederholungen mit vorherigem Text.
-- Nutze Persona, Stance und Strategie-Briefing konsequent.
+- Nutze Persona, Stance, Strategie-Briefing und Buchpositionierung konsequent.
 - Länge ungefähr ${sec.targetWords} Wörter.
 - Stil, Struktur und Sprache müssen zum Genre passen.
 - Schreibe substanziell, klar und konkret.
+- Unterstütze die Positionierung und USP des Buchs.
+- Baue logisch auf vorherigem Text auf.
 - Ende mit einer kurzen natürlichen Brücke zur nächsten Sektion, wenn es passt.
 
-Genre:
+GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
-Projekt:
+PROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
-Strategie-Briefing:
+RESEARCH-STRATEGIE:
 ${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Persona:
-${state.persona}
+PROPOSED BOOK CONCEPT:
+${proposedBook || "Kein Proposed Book vorhanden."}
 
-Subsections:
-${(sec.subsections || []).join(", ")}
+MARKET GAP + USP STRATEGY:
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
 
-Aktuelle Sektion:
+FINALE MARKTANALYSE:
+${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
+
+PERSONA:
+${state.persona || "Keine Persona vorhanden."}
+
+AKTUELLE SEKTION:
 Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}"
 
-Vorheriger Text:
+SUBSECTIONS:
+${(sec.subsections || []).join(", ")}
+
+BISHERIGER BUCHTEXT:
 ${previous}
 
-Ressourcen:
+RESSOURCEN:
 ${resourceContext}`;
-
-
-    $("currentSection").value = "Generiere...";
-    try {
-      const out = await callTextModel(prompt);
-      $("currentSection").value = out;
-      if (isRewrite) {
-        state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`;
-      } else {
-        state.manuscriptSections.push(`## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`);
-        state.currentSectionIndex += 1;
-      }
-      refreshWritingView();
-      saveProjectToLocal();
-    } catch (e) {
-      $("currentSection").value = e.message;
-    }
-  }
-
-  $("generateNextSection").addEventListener("click", () => writeSection(false));
-  $("rewriteCurrent").addEventListener("click", () => {
-    if (state.currentSectionIndex === 0 && state.manuscriptSections.length === 0) {
-      alert("Noch nichts zum Umschreiben.");
-      return;
-    }
-    if (state.currentSectionIndex > 0) state.currentSectionIndex -= 1;
-    writeSection(true);
-  });
 
   const editPrompts = {
     format: "Verbessere Grammatik, Struktur und Lesbarkeit ohne Sinnänderung.",
