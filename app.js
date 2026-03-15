@@ -205,6 +205,57 @@ function getModelForTask(task = "") {
   return taskModelMap[task] || highQualityModel;
 }
 
+async function testOllamaConnection() {
+  const baseUrl = ($("ollamaBaseUrl").value.trim() || "http://localhost:11434").replace(/\/$/, "");
+  const model = $("ollamaModel").value.trim();
+
+  if (!model) {
+    throw new Error("Bitte zuerst ein Ollama-Modell eintragen.");
+  }
+
+  const statusEl = $("ollamaTestStatus");
+  statusEl.textContent = "Teste Verbindung zu Ollama ...";
+
+  const tagsRes = await fetch(`${baseUrl}/api/tags`);
+  if (!tagsRes.ok) {
+    const msg = await tagsRes.text();
+    throw new Error(`Ollama Server nicht erreichbar: ${tagsRes.status} ${msg}`);
+  }
+
+  const tagsData = await tagsRes.json();
+  const installedModels = Array.isArray(tagsData?.models) ? tagsData.models : [];
+  const modelExists = installedModels.some((m) => m?.name === model);
+
+  if (!modelExists) {
+    throw new Error(`Ollama läuft, aber das Modell "${model}" ist nicht installiert.`);
+  }
+
+  const testRes = await fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt: 'Antworte nur mit "OK".',
+      stream: false,
+      options: { temperature: 0 },
+    }),
+  });
+
+  if (!testRes.ok) {
+    const msg = await testRes.text();
+    throw new Error(`Modelltest fehlgeschlagen: ${testRes.status} ${msg}`);
+  }
+
+  const testData = await testRes.json();
+  const answer = String(testData?.response || "").trim();
+
+  if (!answer) {
+    throw new Error("Ollama antwortet, aber ohne Text.");
+  }
+
+  statusEl.textContent = `✅ Verbindung erfolgreich. Server erreichbar und Modell "${model}" antwortet.`;
+}
+
 async function callTextModel(prompt, options = {}) {
   if (state.provider === "ollama") {
     return callOllama(prompt, options);
@@ -750,16 +801,17 @@ async function buildKdpDocxBlob() {
 }
 
 function readResearchForm() {
-  state.research = {
-    bookTitle: $("bookTitle").value.trim(),
-    authorName: $("authorName").value.trim(),
-    genre: $("genre").value.trim(),
-    topic: $("topic").value.trim(),
-    stance: $("stance").value.trim(),
-    differentiator: $("differentiator").value.trim(),
-    tone: $("tone").value.trim(),
-    audience: $("audience").value.trim(),
-  };
+state.research = {
+  bookTitle: $("bookTitle").value.trim(),
+  subtitle: $("bookSubtitle").value.trim(),
+  authorName: $("authorName").value.trim(),
+  genre: $("genre").value.trim(),
+  topic: $("topic").value.trim(),
+  stance: $("stance").value.trim(),
+  differentiator: $("differentiator").value.trim(),
+  tone: $("tone").value.trim(),
+  audience: $("audience").value.trim(),
+};
 }
 
 function fillResearchForm() {
@@ -1215,6 +1267,14 @@ function bindEvents() {
     refreshApiUI();
   });
 
+  $("testOllama").addEventListener("click", async () => {
+  try {
+    await testOllamaConnection();
+  } catch (e) {
+    $("ollamaTestStatus").textContent = `❌ ${e.message}`;
+  }
+});
+  
   $("saveResearch").addEventListener("click", () => {
     readResearchForm();
     saveProjectToLocal();
