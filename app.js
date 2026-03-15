@@ -1450,38 +1450,70 @@ ${resourceContext}`;
  $("generateDescription").addEventListener("click", async () => {
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const prompt = `Erstelle eine starke Buchbeschreibung für dieses Projekt.
+  const marketGapStrategy =
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
 
-Buch:
+  const finalMarketAnalysis =
+    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+
+  const manuscriptExcerpt = state.manuscriptSections.join("\n\n").slice(0, 8000);
+
+  const prompt = `Du bist ein professioneller Buchmarketing-Texter und Positionierungsstratege.
+
+Aufgabe:
+Erstelle eine starke, marktfähige Buchbeschreibung für dieses Projekt.
+Die Beschreibung soll die Marktpositionierung, die USP und den zentralen Nutzen des Buchs sichtbar machen.
+
+BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
-Strategie-Briefing:
+RESEARCH-STRATEGIE:
 ${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Genre:
+GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
-Proposed Book:
-${state.proposedBook}
+PROPOSED BOOK:
+${state.proposedBook || "Kein Proposed Book vorhanden."}
 
-Manuskript Auszug:
-${state.manuscriptSections.join("\n\n").slice(0, 8000)}
+MARKET GAP + USP STRATEGY:
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
+
+FINALE MARKTANALYSE:
+${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
+
+MANUSKRIPT AUSZUG:
+${manuscriptExcerpt || "Kein Manuskript vorhanden."}
+
+Liefere eine Buchbeschreibung mit diesen Zielen:
+- klarer Hook
+- starke Relevanz für die Zielgruppe
+- klares Nutzenversprechen oder emotionaler Reiz
+- sichtbare Differenzierung vom Markt
+- stilistisch passend zum Genre
 
 Regeln:
 - Passe Sprache, Ton und Aufbau an das Genre an.
 - Für Self-Help, Business, Fachbuch und Ratgeber darf die Beschreibung klar nutzenorientiert und verkaufsstark sein.
-- Für Kinderbuch, Roman / Fiction, Religion / Spiritualität und Biografie soll die Beschreibung stilistisch passender und weniger wie aggressive Sales-Copy wirken.
-- Keine generischen Phrasen.
-- Arbeite mit klarem Nutzen, klarer Positionierung oder klarem emotionalem Reiz — je nach Genre.`;
+- Für Kinderbuch, Roman / Fiction, Religion / Spiritualität und Biografie soll die Sprache passender, glaubwürdiger und weniger wie aggressive Sales-Copy wirken.
+- Vermeide generische Phrasen.
+- Mache die USP des Buchs spürbar.
+- Die Beschreibung soll so klingen, als hätte dieses Buch einen echten Grund zu existieren.`;
 
   $("bookDescription").value = "Generiere...";
+
   try {
     const out = await callTextModel(prompt);
     state.description = out;
     $("bookDescription").value = out;
     saveProjectToLocal();
+
+    if (!out || !out.trim()) {
+      $("bookDescription").value =
+        "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
+    }
   } catch (e) {
     $("bookDescription").value = e.message;
   }
