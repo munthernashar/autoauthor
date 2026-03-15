@@ -310,11 +310,19 @@ function refreshWritingView() {
 function parseOutlineToFlatSections(outlineObj) {
   const flat = [];
   (outlineObj.chapters || []).forEach((ch, cIdx) => {
-    (ch.sections || []).forEach((sec, sIdx) => {
+    const chapterTargetWords = Number(ch.targetWords) || 0;
+    const sections = ch.sections || [];
+    const fallbackSectionWords =
+      sections.length > 0 && chapterTargetWords > 0
+        ? Math.max(400, Math.round(chapterTargetWords / sections.length))
+        : 700;
+
+    sections.forEach((sec, sIdx) => {
       flat.push({
         chapterTitle: ch.title,
+        chapterTargetWords,
         sectionTitle: sec.title,
-        targetWords: sec.targetWords || 700,
+        targetWords: Number(sec.targetWords) || fallbackSectionWords,
         subsections: sec.subsections || [],
         cIdx,
         sIdx,
@@ -324,7 +332,66 @@ function parseOutlineToFlatSections(outlineObj) {
   return flat;
 }
 
+function countWords(text = "") {
+  return String(text)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function normalizeOutlineTargetWords(outlineObj, totalTargetWords, chapterCount) {
+  const chapters = Array.isArray(outlineObj?.chapters) ? outlineObj.chapters : [];
+  if (!chapters.length) return outlineObj;
+
+  const safeTotalTargetWords = Math.max(1000, Number(totalTargetWords) || 25000);
+  const safeChapterCount = Math.max(1, Number(chapterCount) || chapters.length || 1);
+
+  const baseChapterWords = Math.max(800, Math.round(safeTotalTargetWords / safeChapterCount));
+
+  chapters.forEach((chapter) => {
+    const sections = Array.isArray(chapter.sections) ? chapter.sections : [];
+    chapter.targetWords = Math.max(800, Number(chapter.targetWords) || baseChapterWords);
+
+    const baseSectionWords = sections.length
+      ? Math.max(400, Math.round(chapter.targetWords / sections.length))
+      : 700;
+
+    sections.forEach((section) => {
+      section.targetWords = Math.max(300, Number(section.targetWords) || baseSectionWords);
+    });
+  });
+
+  return outlineObj;
+}
+
+function getOutlineTargetWordsReport(outlineObj, expectedTotalWords) {
+  const chapters = Array.isArray(outlineObj?.chapters) ? outlineObj.chapters : [];
+  const chapterSum = chapters.reduce((sum, ch) => sum + (Number(ch.targetWords) || 0), 0);
+
+  const sectionSum = chapters.reduce(
+    (sum, ch) =>
+      sum +
+      (Array.isArray(ch.sections)
+        ? ch.sections.reduce((s, sec) => s + (Number(sec.targetWords) || 0), 0)
+        : 0),
+    0,
+  );
+
+  const expected = Math.max(1000, Number(expectedTotalWords) || 25000);
+  const deviation = Math.abs(chapterSum - expected);
+  const deviationPct = deviation / expected;
+
+  return {
+    expected,
+    chapterSum,
+    sectionSum,
+    deviation,
+    deviationPct,
+  };
+}
+
 function extractFirstJsonObject(text) {
+
   if (typeof text !== "string") return "";
   const trimmed = text.trim();
   if (!trimmed) return "";
@@ -1375,8 +1442,10 @@ $("generateOutline").addEventListener("click", async () => {
   marketGapStrategy: $("marketGapStrategy").value.trim(),
   finalMarketAnalysis: $("marketAnalysis").value.trim(),
   resources: state.resources.slice(0, 30),
+      
 };
 
+const structureInstructions = getStructureInstructions(structure);
 
 const system = "Du bist ein Bucharchitekt. Antworte nur als valides JSON.";
 const prompt = `Erstelle ein JSON mit diesem Schema:
@@ -1410,6 +1479,11 @@ Anforderungen:
 - Die Summe aller Kapitel soll ungefähr dem Gesamtziel aus Input.targetWords entsprechen
 - Die Wortverteilung soll sinnvoll auf Input.chapterCount und die Dramaturgie des Buchs verteilt werden
 - targetWords in Kapiteln und Sektionen müssen als Zahlen ausgegeben werden
+- Jedes Kapitel muss eine realistische Zielwortzahl bekommen
+- Jede Sektion muss eine realistische Zielwortzahl bekommen
+- Die Summe der Sektionen eines Kapitels soll ungefähr der Zielwortzahl des jeweiligen Kapitels entsprechen
+- Vermeide Mini-Sektionen ohne Substanz
+- Vermeide extrem ungleichmäßige Verteilungen ohne strategischen Grund
 
 Zusätzliche Regeln:
 - Die Buchstruktur soll die Marktchance besetzen, die in Input.marketGapStrategy beschrieben ist
@@ -1442,11 +1516,25 @@ ${JSON.stringify(spec, null, 2)}`;
         throw new Error("Outline konnte nicht als gültiges JSON gelesen werden. Bitte erneut versuchen.");
       }
       const parsed = JSON.parse(jsonText);
-      state.outline = parsed;
-      state.flatSections = parseOutlineToFlatSections(parsed);
+      const normalized = normalizeOutlineTargetWords(
+        parsed,
+        spec.targetWords,
+        spec.chapterCount,
+      );
+
+      const report = getOutlineTargetWordsReport(normalized, spec.targetWords);
+
+      state.outline = normalized;
+      state.flatSections = parseOutlineToFlatSections(normalized);
       state.currentSectionIndex = 0;
       state.manuscriptSections = [];
-      $("outline").value = JSON.stringify(parsed, null, 2);
+
+      const outlineNote =
+        report.deviationPct > 0.15
+          ? `\n\n⚠️ Hinweis: Die Kapitel-Zielwörter weichen aktuell um ${report.deviation} Wörter vom Gesamtziel ab.`
+          : "";
+
+      $("outline").value = JSON.stringify(normalized, null, 2) + outlineNote;
       refreshWritingView();
       saveProjectToLocal();
     } catch (e) {
@@ -1489,51 +1577,80 @@ async function writeSection(isRewrite = false) {
 
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const proposedBook = state.proposedBook || "";
-  const marketGapStrategy =
-    state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
-  const finalMarketAnalysis =
-    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+const proposedBook = state.proposedBook || "";
+const marketGapStrategy =
+  state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
+const finalMarketAnalysis =
+  state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
-  const prompt = `Du bist ein professioneller Buchautor mit starkem Gespür für Marktpositionierung, Leserführung und nicht-generisches Schreiben.
+const chapterNumber = (sec.cIdx ?? 0) + 1;
+const sectionNumber = (sec.sIdx ?? 0) + 1;
+const totalChapters = state.outline?.chapters?.length || 0;
+const totalSectionsInChapter = state.outline?.chapters?.[sec.cIdx]?.sections?.length || 0;
 
-Aufgabe:
-Schreibe die nächste Buchsektion in deutscher Sprache.
+const prompt = `Du bist ein professioneller Buchautor und Ghostwriter auf Verlagsniveau.
+Du schreibst keinen Blogartikel, keinen SEO-Text und keinen KI-Infotext, sondern lesbaren, zusammenhängenden Buchtext.
 
-Harte Anforderungen:
-- Keine Wiederholungen mit vorherigem Text.
-- Keine generischen Floskeln, keine leeren Motivationssätze, keine austauschbare KI-Sprache.
-- Keine allgemeinen Aussagen ohne konkrete Relevanz für dieses Buchprojekt.
-- Jede Passage muss einen klaren Mehrwert für Leser und Buchpositionierung liefern.
-- Nutze Persona, Stance, Strategie-Briefing, Proposed Book und Marktpositionierung konsequent.
-- Länge ungefähr ${sec.targetWords} Wörter.
-- Stil, Struktur und Sprache müssen zum Genre passen.
-- Unterstütze aktiv die USP und Differenzierung des Buchs.
-- Baue logisch auf vorherigem Text auf.
-- Ende mit einer kurzen natürlichen Brücke zur nächsten Sektion, wenn es passt.
+AUFGABE:
+Schreibe genau den Fließtext für die aktuelle Buchsektion in deutscher Sprache.
 
-Anti-Generic-Regeln:
-- Schreibe nicht so, als könnte derselbe Abschnitt in jedem beliebigen Ratgeber stehen.
-- Vermeide Phrasen wie "In der heutigen Welt", "es ist wichtig zu verstehen", "letztendlich", "am Ende des Tages", sofern sie nicht wirklich nötig sind.
-- Vermeide inhaltsleere Einleitungen.
-- Liefere spezifische Gedanken, klare Beispiele, starke Kontraste oder konkrete Anwendungen.
-- Wenn ein Punkt offensichtlich oder Standardwissen ist, dann überspringe ihn oder mache ihn spezifisch für dieses Buch.
-- Jede Sektion soll eine erkennbare Funktion haben: erklären, reframen, kontrastieren, anwenden, vertiefen oder transformieren.
+WICHTIGES ZIEL:
+Der Text muss sich wie ein echter Abschnitt eines veröffentlichten Buches lesen:
+- souverän
+- flüssig
+- inhaltlich konkret
+- stilistisch konsistent
+- ohne künstliche Übergangsfloskeln
+- ohne Wiederholung des Buchtitels oder Kapiteltitels im Fließtext, außer wenn es inhaltlich wirklich nötig ist
 
-Interne Qualitätskontrolle:
-Bevor du formulierst, prüfe still:
-1. Ist dieser Abschnitt spezifisch für dieses Buch?
-2. Unterstützt er die Marktpositionierung?
-3. Vermeidet er Wiederholung?
-4. Liefert er echte Substanz statt Standardwissen?
-5. Klingt er nach der Persona und dem Genre?
+AUSGABEREGELN:
+- Gib nur den eigentlichen Buchtext der Sektion aus.
+- Keine Markdown-Syntax im Inhalt.
+- Keine Überschrift ausgeben.
+- Keine Doppeltitel.
+- Keine Meta-Sätze wie "Im nächsten Abschnitt", "Als Nächstes", "In diesem Kapitel werden wir".
+- Keine Erklärungen darüber, was du tust.
+- Keine nummerierten Listen, außer wenn sie für das Genre und diese konkrete Sektion wirklich zwingend nötig sind.
+- Kein künstlicher Abschluss nur um elegant zu wirken.
+- Keine Wiederholung bereits erklärter Inhalte.
+- Keine generischen Lehrbuch-Einleitungen.
+
+QUALITÄTSREGELN:
+- Schreibe spezifisch für dieses Buchprojekt, nicht allgemein.
+- Nutze Persona, Genre, Research-Strategie, Proposed Book und Marktpositionierung konsequent.
+- Der Abschnitt muss inhaltlich auf vorherigem Text aufbauen.
+- Der Abschnitt muss genau die Funktion dieser Sektion erfüllen und nicht mehrere Kapitel zugleich vermischen.
+- Unterstütze die USP und Differenzierung des Buchs aktiv.
+- Wenn das Buch für Kinder oder Jugendliche gedacht ist, schreibe klar, zugänglich, lebendig und altersgerecht, aber nicht banal.
+- Wenn historische Inhalte vorkommen, erzähle geordnet, anschaulich und verständlich statt lexikonartig.
+- Vermeide leere Phrasen, Füllsätze und austauschbare Motivationssprache.
+- Zeige Zusammenhänge, Bilder, Beispiele oder kurze erzählerische Mikro-Übergänge, wenn sie dem Lesefluss dienen.
+- Länge: ungefähr ${sec.targetWords} Wörter.
+
+VERBOTEN:
+- "In der heutigen Welt"
+- "Es ist wichtig zu verstehen"
+- "Letztendlich"
+- "Am Ende des Tages"
+- "Wie wir gesehen haben"
+- "Im nächsten Abschnitt"
+- "Als Nächstes"
+- "Zusammenfassend lässt sich sagen"
+- jede Form von KI-typischer Moderationssprache
+
+KONTEXT ZUR AKTUELLEN POSITION IM BUCH:
+- Kapitelnummer: ${chapterNumber} von ${totalChapters}
+- Kapitel: ${sec.chapterTitle}
+- Sektionsnummer: ${sectionNumber} von ${totalSectionsInChapter}
+- Sektion: ${sec.sectionTitle}
+- Unterthemen: ${(sec.subsections || []).join(", ") || "keine"}
 
 GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
-PROJEKT:
+BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
 RESEARCH-STRATEGIE:
@@ -1551,29 +1668,42 @@ ${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
 PERSONA:
 ${state.persona || "Keine Persona vorhanden."}
 
-AKTUELLE SEKTION:
-Kapitel "${sec.chapterTitle}" / Sektion "${sec.sectionTitle}"
-
-SUBSECTIONS:
-${(sec.subsections || []).join(", ")}
-
-BISHERIGER BUCHTEXT:
+BISHERIGER BUCHTEXT (letzter Kontext, nicht wiederholen):
 ${previous}
 
 RESSOURCEN:
-${resourceContext}`;
+${resourceContext}
+
+INTERNE SELBSTPRÜFUNG VOR DEM SCHREIBEN:
+1. Klingt der Abschnitt wie ein echtes Buch und nicht wie eine KI-Zusammenfassung?
+2. Ist der Text konkret statt generisch?
+3. Passt der Stil zur Zielgruppe und zum Genre?
+4. Wird nichts doppelt erklärt?
+5. Wird nur diese Sektion geschrieben und keine Vorschau auf spätere Abschnitte?`;
 
   showWarningsInTextarea($("currentSection"), writingWarnings);
   $("currentSection").value += "Generiere...";
 
   try {
     const out = await callTextModel(prompt);
-    $("currentSection").value = out;
+    const cleanedOut = (out || "").trim();
+    const actualWords = countWords(cleanedOut);
+    const targetWords = Number(sec.targetWords) || 700;
+    const minWords = Math.round(targetWords * 0.75);
+    const maxWords = Math.round(targetWords * 1.3);
+
+    const finalOut = cleanedOut;
+    const wordHint =
+      actualWords < minWords || actualWords > maxWords
+        ? `\n\n⚠️ Ziel ca. ${targetWords} Wörter, tatsächlich ${actualWords} Wörter.`
+        : "";
+
+    $("currentSection").value = finalOut + wordHint;
 
     if (isRewrite) {
-      state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`;
+      state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${finalOut}`;
     } else {
-      state.manuscriptSections.push(`## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`);
+      state.manuscriptSections.push(`## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${finalOut}`);
       state.currentSectionIndex += 1;
     }
 
