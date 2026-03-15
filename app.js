@@ -1405,12 +1405,12 @@ ${JSON.stringify(spec, null, 2)}`;
   });
 
   async function writeSection(isRewrite = false) {
-    if (!state.flatSections.length) {
-      alert("Bitte zuerst Outline generieren.");
-      return;
-    }
+  if (!state.flatSections.length) {
+    alert("Bitte zuerst Outline generieren.");
+    return;
+  }
 
-      const writingWarnings = [];
+  const writingWarnings = [];
 
   if (!state.proposedBook?.trim()) {
     writingWarnings.push("Proposed Book fehlt. Die Kapitel können dadurch generischer werden.");
@@ -1426,26 +1426,26 @@ ${JSON.stringify(spec, null, 2)}`;
   if (!state.persona?.trim()) {
     writingWarnings.push("Persona fehlt. Stil und Stimme können dadurch uneinheitlich werden.");
   }
-    
-    const idx = state.currentSectionIndex;
-    const sec = state.flatSections[idx];
-    if (!sec) return;
 
-    const previous = state.manuscriptSections.join("\n\n").slice(-12000);
-    const resourceContext = state.resources
-      .map((r) => `${r.type}:${r.label}\n${r.content?.slice(0, 1200) || ""}`)
-      .join("\n\n")
-      .slice(0, 12000);
+  const idx = state.currentSectionIndex;
+  const sec = state.flatSections[idx];
+  if (!sec) return;
 
-   const genreInstructions = getGenrePromptInstructions(state.research.genre);
+  const previous = state.manuscriptSections.join("\n\n").slice(-12000);
+  const resourceContext = state.resources
+    .map((r) => `${r.type}:${r.label}\n${r.content?.slice(0, 1200) || ""}`)
+    .join("\n\n")
+    .slice(0, 12000);
 
-const proposedBook = state.proposedBook || "";
-const marketGapStrategy =
-  state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
-const finalMarketAnalysis =
-  state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+  const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-const prompt = `Du bist ein professioneller Buchautor mit starkem Gespür für Marktpositionierung, Leserführung und nicht-generisches Schreiben.
+  const proposedBook = state.proposedBook || "";
+  const marketGapStrategy =
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
+  const finalMarketAnalysis =
+    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+
+  const prompt = `Du bist ein professioneller Buchautor mit starkem Gespür für Marktpositionierung, Leserführung und nicht-generisches Schreiben.
 
 Aufgabe:
 Schreibe die nächste Buchsektion in deutscher Sprache.
@@ -1512,20 +1512,27 @@ ${previous}
 
 RESSOURCEN:
 ${resourceContext}`;
-  document.querySelectorAll("button[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const txt = $("editorInput").value.trim();
-      if (!txt) return;
-      $("editorOutput").value = "Generiere...";
-      try {
-        const out = await callTextModel(`${editPrompts[btn.dataset.edit]}\n\nText:\n${txt}`);
-        $("editorOutput").value = out;
-      } catch (e) {
-        $("editorOutput").value = e.message;
-      }
-    });
-  });
 
+  showWarningsInTextarea($("currentSection"), writingWarnings);
+  $("currentSection").value += "Generiere...";
+
+  try {
+    const out = await callTextModel(prompt);
+    $("currentSection").value = out;
+
+    if (isRewrite) {
+      state.manuscriptSections[idx] = `## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`;
+    } else {
+      state.manuscriptSections.push(`## ${sec.chapterTitle} – ${sec.sectionTitle}\n\n${out}`);
+      state.currentSectionIndex += 1;
+    }
+
+    refreshWritingView();
+    saveProjectToLocal();
+  } catch (e) {
+    $("currentSection").value = e.message;
+  }
+}
   $("customEditBtn").addEventListener("click", async () => {
     const txt = $("editorInput").value.trim();
     const custom = $("customEditPrompt").value.trim();
