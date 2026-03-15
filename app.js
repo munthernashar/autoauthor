@@ -1902,7 +1902,13 @@ const out = await callTextModel(prompt, { task: "titles" });
 $("addResourceUrl").addEventListener("click", () => {
   const url = $("resourceUrl").value.trim();
   if (!url) return;
-  state.resources.push({ type: "url", label: url, content: url });
+
+  state.resources.push({
+    type: "url",
+    label: url,
+    content: `Externe Quelle: ${url}\nHinweis: URL wurde als Referenz gespeichert. Für verlässliche Nutzung bitte Kerninhalte zusätzlich als Textnotiz einfügen.`,
+  });
+
   $("resourceUrl").value = "";
   renderResources();
   saveProjectToLocal();
@@ -1919,16 +1925,22 @@ $("addResourceText").addEventListener("click", () => {
 
 $("resourceFile").addEventListener("change", async (event) => {
   const files = Array.from(event.target.files || []);
+
   for (const file of files) {
-    const content = await file.text();
-     state.resources.push({
-       type: "file",
+    try {
+      const resource = await extractFileResource(file);
+      state.resources.push(resource);
+    } catch (e) {
+      state.resources.push({
+        type: "file",
         label: file.name,
-        content: content.slice(0, 30000),
-    });
+        content: `[Fehler beim Einlesen von ${file.name}: ${e.message}]`,
+      });
+    }
   }
-    renderResources();
-    saveProjectToLocal();
+
+  renderResources();
+  saveProjectToLocal();
 });
 
 $("generatePersona").addEventListener("click", async () => {
@@ -2239,9 +2251,16 @@ async function writeSection(isRewrite = false) {
 
   const previous = state.manuscriptSections.join("\n\n").slice(-12000);
   const resourceContext = state.resources
-    .map((r) => `${r.type}:${r.label}\n${r.content?.slice(0, 1200) || ""}`)
-    .join("\n\n")
-    .slice(0, 12000);
+    .map((r, i) => {
+      return [
+        `RESOURCE ${i + 1}`,
+        `Typ: ${r.type}`,
+        `Label: ${r.label}`,
+        `Inhalt: ${(r.content || "").slice(0, 1800)}`,
+      ].join("\n");
+    })
+    .join("\n\n---\n\n")
+    .slice(0, 20000);
 
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
