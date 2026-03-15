@@ -1009,24 +1009,61 @@ Regeln:
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
-  const prompt = `Generiere 10 prägnante Buchtitel für dieses Projekt, jeweils in einer neuen Zeile ohne Nummerierung.
+  const marketGapStrategy =
+  state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
 
-Projekt:
+const finalMarketAnalysis =
+  state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+
+const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
+
+Aufgabe:
+Generiere 10 starke, marktfähige Buchtitel für dieses Buchprojekt.
+
+Die Titel sollen:
+- merkfähig
+- klar positioniert
+- nicht generisch
+- passend zum Genre
+sein.
+
+BUCHPROJEKT:
 ${JSON.stringify(state.research, null, 2)}
 
-Strategie-Briefing:
+RESEARCH STRATEGIE:
 ${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
-Genre:
+GENRE:
 ${state.research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
+PROPOSED BOOK:
+${state.proposedBook || "Kein Proposed Book vorhanden."}
+
+MARKET GAP + USP STRATEGY:
+${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
+
+FINALE MARKTANALYSE:
+${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
+
 Regeln:
+- Die Titel müssen die zentrale Idee oder Transformation des Buchs andeuten.
+- Die Titel sollen eine klare Positionierung im Markt erkennen lassen.
+- Vermeide generische Titel wie "Der ultimative Guide".
+- Wenn es zum Genre passt, kombiniere Haupttitel + Untertitel.
+- Untertitel dürfen Nutzen, Zielgruppe oder Differenzierung klar machen.
 - Die Titel müssen zum Genre passen.
-- Sie sollen merkfähig und nicht generisch sein.
-- Sie sollen das zentrale Versprechen, den Kernkonflikt oder den inhaltlichen Kern des Buchs andeuten.
-- Keine Nummerierung, keine Erklärungen, nur Titelzeilen.`;
+
+Format:
+Nur Titelzeilen.
+
+Beispiel:
+Atomic Habits – Tiny Changes, Remarkable Results
+
+Keine Nummerierung.
+Keine Erklärung.
+Nur die Titel.`;
 
   const list = $("titleOptions");
   list.innerHTML = "<li>Generiere...</li>";
