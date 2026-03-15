@@ -1038,16 +1038,18 @@ Regeln:
     button.disabled = false;
   }
 });
+  
+$("generateTitles").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
   const marketGapStrategy =
-  state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
+    state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
 
-const finalMarketAnalysis =
-  state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
+  const finalMarketAnalysis =
+    state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
-const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
+  const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
 
 Aufgabe:
 Generiere 10 starke, marktfähige Buchtitel für dieses Buchprojekt.
@@ -1123,39 +1125,39 @@ Nur die Titel.`;
   }
 });
 
-  $("addResourceUrl").addEventListener("click", () => {
-    const url = $("resourceUrl").value.trim();
-    if (!url) return;
-    state.resources.push({ type: "url", label: url, content: url });
-    $("resourceUrl").value = "";
-    renderResources();
-    saveProjectToLocal();
-  });
+$("addResourceUrl").addEventListener("click", () => {
+  const url = $("resourceUrl").value.trim();
+  if (!url) return;
+  state.resources.push({ type: "url", label: url, content: url });
+  $("resourceUrl").value = "";
+  renderResources();
+  saveProjectToLocal();
+});
 
-  $("addResourceText").addEventListener("click", () => {
-    const txt = $("resourceText").value.trim();
-    if (!txt) return;
-    state.resources.push({ type: "text", label: txt.slice(0, 70), content: txt });
-    $("resourceText").value = "";
-    renderResources();
-    saveProjectToLocal();
-  });
+$("addResourceText").addEventListener("click", () => {
+  const txt = $("resourceText").value.trim();
+  if (!txt) return;
+  state.resources.push({ type: "text", label: txt.slice(0, 70), content: txt });
+  $("resourceText").value = "";
+  renderResources();
+  saveProjectToLocal();
+});
 
-  $("resourceFile").addEventListener("change", async (event) => {
-    const files = Array.from(event.target.files || []);
-    for (const file of files) {
-      const content = await file.text();
-      state.resources.push({
-        type: "file",
+$("resourceFile").addEventListener("change", async (event) => {
+  const files = Array.from(event.target.files || []);
+  for (const file of files) {
+    const content = await file.text();
+     state.resources.push({
+       type: "file",
         label: file.name,
         content: content.slice(0, 30000),
-      });
-    }
+    });
+  }
     renderResources();
     saveProjectToLocal();
-  });
+});
 
-  $("generatePersona").addEventListener("click", async () => {
+$("generatePersona").addEventListener("click", async () => {
   const input = {
     name: $("personaName").value.trim(),
     refs: $("personaRefs").value.trim(),
@@ -1165,9 +1167,9 @@ Nur die Titel.`;
     researchStrategy: state.researchStrategy,
     genre: state.research.genre || "",
     genreInstructions: getGenrePromptInstructions(state.research.genre),
-  };
+};
 
-  $("personaResult").value = "Generiere...";
+$("personaResult").value = "Generiere...";
 
   try {
     const out = await callTextModel(
@@ -1310,7 +1312,7 @@ Regeln:
   }
 });
 
-  $("generateOutline").addEventListener("click", async () => {
+$("generateOutline").addEventListener("click", async () => {
     readResearchForm();
     const spec = {
   targetWords: Number($("targetWords").value || 25000),
@@ -1402,9 +1404,9 @@ ${JSON.stringify(spec, null, 2)}`;
     } catch (e) {
       $("outline").value = e.message;
     }
-  });
+});
 
-  async function writeSection(isRewrite = false) {
+async function writeSection(isRewrite = false) {
   if (!state.flatSections.length) {
     alert("Bitte zuerst Outline generieren.");
     return;
@@ -1544,9 +1546,9 @@ ${resourceContext}`;
     } catch (e) {
       $("editorOutput").value = e.message;
     }
-  });
+});
 
-  $("generateImage").addEventListener("click", async () => {
+$("generateImage").addEventListener("click", async () => {
     const prompt = $("imagePrompt").value.trim();
     if (!prompt) return;
     try {
@@ -1557,9 +1559,9 @@ ${resourceContext}`;
     } catch (e) {
       alert(e.message);
     }
-  });
+});
 
-  $("generateCover").addEventListener("click", async () => {
+$("generateCover").addEventListener("click", async () => {
     const title = state.research.bookTitle || "Untitled";
     const subtitle = `A practical guide on ${state.research.topic || "your topic"}`;
     const prompt = `Professional book cover design, readable typography, title: "${title}", subtitle: "${subtitle}", author: "${state.research.authorName || "Author"}", modern non-fiction, clean layout`;
@@ -1571,9 +1573,9 @@ ${resourceContext}`;
     } catch (e) {
       alert(e.message);
     }
-  });
+});
 
- $("generateDescription").addEventListener("click", async () => {
+$("generateDescription").addEventListener("click", async () => {
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
   const marketGapStrategy =
@@ -1645,15 +1647,15 @@ Regeln:
   }
 });
 
-  $("downloadMarkdown").addEventListener("click", () => {
+$("downloadMarkdown").addEventListener("click", () => {
     readResearchForm();
     const md = `# ${state.research.bookTitle || "Untitled"}\n\n## Author\n${state.research.authorName || ""}\n\n## Description\n${$(
       "bookDescription",
     ).value}\n\n## Manuscript\n\n${state.manuscriptSections.join("\n\n")}`;
     download("bookforge-manuscript.md", md, "text/markdown;charset=utf-8");
-  });
+});
 
-  $("downloadDocHtml").addEventListener("click", () => {
+$("downloadDocHtml").addEventListener("click", () => {
     readResearchForm();
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${
       state.research.bookTitle || "Book"
@@ -1665,15 +1667,15 @@ Regeln:
       "&": "&amp;",
     }[m]))}</pre></body></html>`;
     download("bookforge-manuscript.doc", html, "application/msword");
-  });
+});
 
-  $("saveProjectJson").addEventListener("click", () => {
+$("saveProjectJson").addEventListener("click", () => {
     download("bookforge-project.json", JSON.stringify(state, null, 2), "application/json");
-  });
+});
 
-  $("loadProjectJson").addEventListener("click", () => $("projectFile").click());
+$("loadProjectJson").addEventListener("click", () => $("projectFile").click());
 
-  $("projectFile").addEventListener("change", async (event) => {
+$("projectFile").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const data = JSON.parse(await file.text());
@@ -1693,7 +1695,7 @@ Regeln:
     renderImages();
     $("bookDescription").value = state.description || "";
     saveProjectToLocal();
-  });
+});
 }
 
 function renderImages() {
@@ -1703,7 +1705,7 @@ function renderImages() {
     const figure = document.createElement("figure");
     figure.innerHTML = `<img src="${img.url}" alt="${img.type}" /><figcaption>${img.type}: ${img.prompt}</figcaption>`;
     root.appendChild(figure);
-  });
+});
 }
 
 function init() {
