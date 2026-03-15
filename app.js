@@ -1279,7 +1279,7 @@ Liefere die Ausgabe in dieser Struktur:
 Wiederhole dieses Format für jedes Wettbewerbsbuch.`;
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "competitorAnalysis" });
     target.value = (out || "").trim();
 
     state.marketResearch = {
@@ -1368,7 +1368,7 @@ Regeln:
 - Markiere Unsicherheiten, wenn die Datengrundlage dünn ist.`;
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "patternExtraction" });
     target.value = (out || "").trim();
 
     state.marketResearch = {
@@ -1472,7 +1472,7 @@ Regeln:
 - Positionierung muss zum Genre passen.`;
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "marketGap" });
     target.value = (out || "").trim();
 
     state.marketResearch = {
@@ -1535,7 +1535,7 @@ Regeln:
   $("researchStrategy").value = "Generiere...";
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "researchStrategy" });
     state.researchStrategy = out;
     $("researchStrategy").value = out;
     saveProjectToLocal();
@@ -1709,7 +1709,7 @@ Regeln:
 - Passe die Analyse sauber an das Genre an.`;
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "marketAnalysis" });
     target.value = (out || "").trim();
 
     state.marketResearch = {
@@ -1815,7 +1815,7 @@ Nur die Titel.`;
   const list = $("titleOptions");
   list.innerHTML = "<li>Generiere...</li>";
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "description" });
     state.titles = out
       .split("\n")
       .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
@@ -1880,14 +1880,13 @@ $("generatePersona").addEventListener("click", async () => {
     researchStrategy: state.researchStrategy,
     genre: state.research.genre || "",
     genreInstructions: getGenrePromptInstructions(state.research.genre),
-};
+  };
 
-$("personaResult").value = "Generiere...";
+  $("personaResult").value = "Generiere...";
 
   try {
     const out = await callTextModel(
-      `Erzeuge eine detaillierte Author Persona für dieses Buchprojekt:\n${JSON.stringify(input, null, 2)}\n
-Struktur:
+      `Erzeuge eine detaillierte Author Persona für dieses Buchprojekt:\n${JSON.stringify(input, null, 2)}\n\nStruktur:
 - Stimme
 - Ton
 - Perspektive
@@ -1899,7 +1898,9 @@ Regeln:
 - Passe die Persona an Genre und strategisches Briefing an.
 - Die Persona soll später als konsistente Schreibgrundlage für Outline und Kapitel dienen.
 - Vermeide generische Standard-Non-Fiction-Stimme, wenn sie nicht zum Genre passt.`,
+      { task: "persona" },
     );
+
     state.persona = out;
     $("personaResult").value = out;
     saveProjectToLocal();
@@ -2006,7 +2007,7 @@ Regeln:
   $("proposedBook").value += "Generiere...";
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "proposedBook" });
     state.proposedBook = out;
     $("proposedBook").value = out;
     saveProjectToLocal();
@@ -2106,7 +2107,7 @@ ${JSON.stringify(spec, null, 2)}`;
     showWarningsInTextarea($("outline"), outlineWarnings);
     $("outline").value += "Generiere JSON...";
     try {
-      const out = await callTextModel(prompt, { system, json: true });
+      const out = await callTextModel(prompt, { system, json: true, task: "outline" });
       const jsonText = extractFirstJsonObject(out);
       if (!jsonText) {
         throw new Error("Outline konnte nicht als gültiges JSON gelesen werden. Bitte erneut versuchen.");
@@ -2296,7 +2297,7 @@ INTERNE SELBSTPRÜFUNG VOR DEM SCHREIBEN:
   $("currentSection").value += "Generiere...";
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "writeSection" });
     const cleanedOut = (out || "").trim();
     const actualWords = countWords(cleanedOut);
     const targetWords = Number(sec.targetWords) || 700;
@@ -2428,7 +2429,7 @@ Regeln:
   $("bookDescription").value = "Generiere...";
 
   try {
-    const out = await callTextModel(prompt);
+    const out = await callTextModel(prompt, { task: "titles" });
     state.description = out;
     $("bookDescription").value = out;
     saveProjectToLocal();
