@@ -1986,12 +1986,16 @@ async function writeSection(isRewrite = false) {
     writingWarnings.push("Persona fehlt. Stil und Stimme können dadurch uneinheitlich werden.");
   }
 
-  const idx = state.currentSectionIndex;
+  const idx = isRewrite
+    ? Math.max(0, state.currentSectionIndex - 1)
+    : state.currentSectionIndex;
+
   const sec = state.flatSections[idx];
-  if (!sec) return;
-  $("currentSection").value = "Keine weitere Sektion verfügbar.";
-  return;
-}
+
+  if (!sec) {
+    $("currentSection").value = "Keine weitere Sektion verfügbar.";
+    return;
+  }
 
   const previous = state.manuscriptSections.join("\n\n").slice(-12000);
   const resourceContext = state.resources
@@ -2130,16 +2134,13 @@ INTERNE SELBSTPRÜFUNG VOR DEM SCHREIBEN:
     $("currentSection").value = finalOut + wordHint;
 
     const formattedSection = formatManuscriptSection(sec, finalOut, idx);
-    
-    const idx = isRewrite
-  ? Math.max(0, state.currentSectionIndex - 1)
-  : state.currentSectionIndex;
-    const sec = state.flatSections[idx];
 
-if (!sec) {
-  $("currentSection").value = "Keine weitere Sektion verfügbar.";
-  return;
-}
+    if (isRewrite) {
+      state.manuscriptSections[idx] = formattedSection;
+    } else {
+      state.manuscriptSections.push(formattedSection);
+      state.currentSectionIndex += 1;
+    }
 
     refreshWritingView();
     saveProjectToLocal();
