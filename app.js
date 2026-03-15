@@ -652,9 +652,13 @@ function renderResources() {
 function refreshWritingView() {
   const total = state.flatSections.length;
   const idx = state.currentSectionIndex;
-  $("writingProgress").textContent = total
-    ? `Sektion ${Math.min(idx + 1, total)} von ${total}`
-    : "Noch keine Outline erzeugt.";
+  if (!total) {
+    $("writingProgress").textContent = "Noch keine Outline erzeugt.";
+  } else if (idx >= total) {
+    $("writingProgress").textContent = `Fertig – ${total} von ${total} Sektionen erstellt.`;
+  } else {
+    $("writingProgress").textContent = `Sektion ${idx + 1} von ${total}`;
+  }
   $("manuscript").value = state.manuscriptSections.join("\n\n");
 }
 
@@ -957,7 +961,8 @@ function getCompetitorDataWarnings() {
 
 function showWarningsInTextarea(el, warnings = []) {
   if (!warnings.length) return false;
-  el.value = `⚠️ Hinweise:\n- ${warnings.join("\n- ")}\n\n`;
+  const prefix = `⚠️ Hinweise:\n- ${warnings.join("\n- ")}\n\n`;
+  el.value = prefix + (el.value || "");
   return true;
 }
 
@@ -1984,6 +1989,9 @@ async function writeSection(isRewrite = false) {
   const idx = state.currentSectionIndex;
   const sec = state.flatSections[idx];
   if (!sec) return;
+  $("currentSection").value = "Keine weitere Sektion verfügbar.";
+  return;
+}
 
   const previous = state.manuscriptSections.join("\n\n").slice(-12000);
   const resourceContext = state.resources
@@ -2122,13 +2130,16 @@ INTERNE SELBSTPRÜFUNG VOR DEM SCHREIBEN:
     $("currentSection").value = finalOut + wordHint;
 
     const formattedSection = formatManuscriptSection(sec, finalOut, idx);
+    
+    const idx = isRewrite
+  ? Math.max(0, state.currentSectionIndex - 1)
+  : state.currentSectionIndex;
+    const sec = state.flatSections[idx];
 
-    if (isRewrite) {
-      state.manuscriptSections[idx] = formattedSection;
-    } else {
-      state.manuscriptSections.push(formattedSection);
-      state.currentSectionIndex += 1;
-    }
+if (!sec) {
+  $("currentSection").value = "Keine weitere Sektion verfügbar.";
+  return;
+}
 
     refreshWritingView();
     saveProjectToLocal();
@@ -2309,7 +2320,15 @@ function renderImages() {
   root.innerHTML = "";
   state.images.forEach((img) => {
     const figure = document.createElement("figure");
-    figure.innerHTML = `<img src="${img.url}" alt="${img.type}" /><figcaption>${img.type}: ${img.prompt}</figcaption>`;
+    const image = document.createElement("img");
+    image.src = img.url;
+    image.alt = img.type || "";
+    
+    const caption = document.createElement("figcaption");
+    caption.textContent = `${img.type || ""}: ${img.prompt || ""}`;
+    
+    figure.appendChild(image);
+    figure.appendChild(caption);
     root.appendChild(figure);
 });
 }
