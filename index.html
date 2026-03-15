@@ -51,10 +51,13 @@
             <label>Ollama Modell<input id="ollamaModel" value="llama3.1:8b" /></label>
             <label>Temperatur (optional)<input id="ollamaTemperature" type="number" step="0.1" placeholder="0.7" /></label>
           </div>
-          <div class="row">
-            <button id="saveOllama" type="button">Verbindung speichern</button>
-          </div>
-          <small>Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.</small>
+        <div class="row">
+          <button id="saveOllama" type="button">Verbindung speichern</button>
+          <button id="testOllama" type="button" class="secondary">Verbindung testen</button>
+        </div>
+        <small id="ollamaTestStatus" class="status">
+          Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.
+        </small>
         </div>
 
         <p id="apiStatus" class="status"></p>
