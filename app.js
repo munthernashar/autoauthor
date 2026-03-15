@@ -3,7 +3,8 @@ const $ = (id) => document.getElementById(id);
 const state = {
   provider: localStorage.getItem("ai_provider") || "openai",
   apiKey: localStorage.getItem("openai_api_key") || "",
-  textModel: localStorage.getItem("text_model") || "gpt-4.1-mini",
+  textModel: localStorage.getItem("text_model") || "gpt-4.1",
+  fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
   imageModel: localStorage.getItem("image_model") || "gpt-image-1",
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
@@ -36,6 +37,7 @@ function refreshApiUI() {
   $("provider").value = state.provider;
   $("apiKey").value = state.apiKey;
   $("textModel").value = state.textModel;
+  $("fastTextModel").value = state.fastTextModel;
   $("imageModel").value = state.imageModel;
   $("ollamaBaseUrl").value = state.ollamaBaseUrl;
   $("ollamaModel").value = state.ollamaModel;
@@ -116,10 +118,10 @@ function extractTextFromResponse(data) {
   return chunks.join("\n").trim();
 }
 
-async function callOpenAI(prompt, { system = "", json = false } = {}) {
+async function callOpenAI(prompt, { system = "", json = false, model = "" } = {}) {
   if (!state.apiKey) throw new Error("Bitte API-Key setzen.");
   const body = {
-    model: state.textModel,
+    model: model || state.textModel,
     input: [
       system ? { role: "system", content: system } : null,
       { role: "user", content: prompt },
@@ -181,11 +183,35 @@ async function callOllama(prompt, { system = "" } = {}) {
   throw new Error("Ollama hat geantwortet, aber ohne Textinhalt.");
 }
 
+function getModelForTask(task = "") {
+  const highQualityModel = state.textModel || "gpt-4.1";
+  const fastModel = state.fastTextModel || "gpt-4.1-mini";
+
+  const taskModelMap = {
+    competitorAnalysis: fastModel,
+    patternExtraction: fastModel,
+    titles: fastModel,
+
+    marketGap: highQualityModel,
+    outline: highQualityModel,
+    writeSection: highQualityModel,
+    persona: highQualityModel,
+    proposedBook: highQualityModel,
+    marketAnalysis: highQualityModel,
+    description: highQualityModel,
+    researchStrategy: highQualityModel,
+  };
+
+  return taskModelMap[task] || highQualityModel;
+}
+
 async function callTextModel(prompt, options = {}) {
   if (state.provider === "ollama") {
     return callOllama(prompt, options);
   }
-  return callOpenAI(prompt, options);
+
+  const selectedModel = options.model || getModelForTask(options.task || "");
+  return callOpenAI(prompt, { ...options, model: selectedModel });
 }
 
 async function generateImage(prompt) {
@@ -1158,11 +1184,13 @@ function bindEvents() {
   $("saveApiKey").addEventListener("click", () => {
     state.provider = "openai";
     state.apiKey = $("apiKey").value.trim();
-    state.textModel = $("textModel").value.trim() || "gpt-4.1-mini";
+    state.textModel = $("textModel").value.trim() || "gpt-4.1";
+    state.fastTextModel = $("fastTextModel").value.trim() || "gpt-4.1-mini";
     state.imageModel = $("imageModel").value.trim() || "gpt-image-1";
     localStorage.setItem("ai_provider", state.provider);
     localStorage.setItem("openai_api_key", state.apiKey);
     localStorage.setItem("text_model", state.textModel);
+    localStorage.setItem("fast_text_model", state.fastTextModel);
     localStorage.setItem("image_model", state.imageModel);
     refreshApiUI();
     saveProjectToLocal();
