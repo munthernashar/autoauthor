@@ -760,6 +760,46 @@ function getOutlineTargetWordsReport(outlineObj, expectedTotalWords) {
   };
 }
 
+function getStructureInstructions(structureType = "") {
+  const map = {
+    classic_nonfiction: `Kapitelstruktur:
+- Thema einführen
+- Kerngedanken erklären
+- Beispiele oder Anwendungen zeigen
+- gedanklich abrunden`,
+
+    problem_solution: `Kapitelstruktur:
+- Problem benennen
+- Ursachen oder Hintergründe erklären
+- Lösung entwickeln
+- Umsetzung zeigen`,
+
+    storytelling: `Kapitelstruktur:
+- Ausgangssituation
+- Konflikt oder Wendepunkt
+- Entwicklung
+- Erkenntnis oder Auflösung`,
+
+    educational_kids: `Kapitelstruktur:
+- leicht verständlich einführen
+- anschaulich erzählen oder erklären
+- Bedeutung kindgerecht verdeutlichen
+- mit einem klaren Lernmoment abschließen`,
+
+    historical: `Kapitelstruktur:
+- historischen Kontext setzen
+- Ereignisse chronologisch erzählen
+- Zusammenhänge und Folgen erklären
+- sauber zur nächsten Phase überleiten`,
+  };
+
+  return map[structureType] || `Kapitelstruktur:
+- Thema einführen
+- Inhalte logisch erklären
+- Beispiele oder Anwendungen einbauen
+- gedanklich abrunden`;
+}
+
 function extractFirstJsonObject(text) {
 
   if (typeof text !== "string") return "";
