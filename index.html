@@ -224,7 +224,7 @@
         <textarea id="resourceText" rows="4" placeholder="Research-Notizen"></textarea>
         <div class="row">
           <button id="addResourceText">Text hinzufügen</button>
-          <input id="resourceFile" type="file" multiple accept=".txt,.md,.json,.csv,.html,.pdf" />>
+          <input id="resourceFile" type="file" multiple accept=".txt,.md,.json,.csv,.html,.pdf" />
         </div>
         <ul id="resourceList"></ul>
       </section>
@@ -299,15 +299,24 @@
               <option value="nanobananapro">Nano Banana Pro</option>
             </select>
           </label>
-          <label>Bildmodell
-            <input id="imageGenerationModel" value="gpt-image-1" />
-          </label>
-          <label>Bild API Key (optional je nach Provider)
-            <input id="imageApiKey" type="password" autocomplete="off" />
-          </label>
-          <label>Bild Base URL (optional je nach Provider)
-            <input id="imageBaseUrl" placeholder="https://api.example.com" />
-          </label>
+        
+          <div id="openaiImageConfig">
+            <label>OpenAI Bildmodell
+              <input id="imageGenerationModel" value="gpt-image-1" />
+            </label>
+            <label>OpenAI API Key
+              <input id="openaiImageApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+            </label>
+          </div>
+        
+          <div id="bananaImageConfig" style="display:none;">
+            <label>Nano Banana Pro API Key
+              <input id="bananaImageApiKey" type="password" autocomplete="off" placeholder="banana_..." />
+            </label>
+            <label>Nano Banana Pro Base URL (optional, nur wenn abweichend)
+              <input id="bananaImageBaseUrl" placeholder="https://api.example.com" />
+            </label>
+          </div>
         </div>
       
         <textarea id="imagePrompt" rows="3" placeholder="Prompt für Innenbild / Diagramm"></textarea>
