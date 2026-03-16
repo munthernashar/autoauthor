@@ -7,8 +7,9 @@ const state = {
   fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
   imageModel: localStorage.getItem("image_model") || "gpt-image-1",
   imageProvider: localStorage.getItem("image_provider") || "openai",
-  imageApiKey: localStorage.getItem("image_api_key") || "",
-  imageBaseUrl: localStorage.getItem("image_base_url") || "",
+  openaiImageApiKey: localStorage.getItem("openai_image_api_key") || "",
+  bananaImageApiKey: localStorage.getItem("banana_image_api_key") || "",
+  bananaImageBaseUrl: localStorage.getItem("banana_image_base_url") || "",
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
@@ -45,8 +46,9 @@ function refreshApiUI() {
   $("imageModel").value = state.imageModel;
   $("imageProvider").value = state.imageProvider || "openai";
   $("imageGenerationModel").value = state.imageModel || "gpt-image-1";
-  $("imageApiKey").value = state.imageApiKey || "";
-  $("imageBaseUrl").value = state.imageBaseUrl || "";
+  $("openaiImageApiKey").value = state.openaiImageApiKey || "";
+  $("bananaImageApiKey").value = state.bananaImageApiKey || "";
+  $("bananaImageBaseUrl").value = state.bananaImageBaseUrl || "";
   $("ollamaBaseUrl").value = state.ollamaBaseUrl;
   $("ollamaModel").value = state.ollamaModel;
   $("ollamaTemperature").value = state.ollamaTemperature;
@@ -54,6 +56,10 @@ function refreshApiUI() {
   const isOpenAI = state.provider === "openai";
   $("openaiConfig").style.display = isOpenAI ? "block" : "none";
   $("ollamaConfig").style.display = isOpenAI ? "none" : "block";
+
+  const imageProvider = state.imageProvider || "openai";
+  $("openaiImageConfig").style.display = imageProvider === "openai" ? "block" : "none";
+  $("bananaImageConfig").style.display = imageProvider === "nanobananapro" ? "block" : "none";
 
   if (isOpenAI) {
     $("apiStatus").textContent = state.apiKey
@@ -87,8 +93,9 @@ function createEmptyProjectState() {
     fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
     imageModel: localStorage.getItem("image_model") || "gpt-image-1",
     imageProvider: localStorage.getItem("image_provider") || "openai",
-    imageApiKey: localStorage.getItem("image_api_key") || "",
-    imageBaseUrl: localStorage.getItem("image_base_url") || "",
+    openaiImageApiKey: localStorage.getItem("openai_image_api_key") || "",
+    bananaImageApiKey: localStorage.getItem("banana_image_api_key") || "",
+    bananaImageBaseUrl: localStorage.getItem("banana_image_base_url") || "",
     ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
     ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
     ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
@@ -500,13 +507,14 @@ async function callTextModel(prompt, options = {}) {
 }
 
 async function generateImageWithOpenAI(prompt) {
-  if (!state.apiKey) throw new Error("Bitte OpenAI API-Key setzen.");
+  const key = state.openaiImageApiKey || state.apiKey;
+  if (!key) throw new Error("Bitte OpenAI API-Key für Bildgenerierung setzen.");
 
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${state.apiKey}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
       model: state.imageModel || "gpt-image-1",
@@ -525,23 +533,23 @@ async function generateImageWithOpenAI(prompt) {
 }
 
 async function generateImageWithNanoBananaPro(prompt) {
-  if (!state.imageBaseUrl) {
-    throw new Error("Bitte Base URL für Nano Banana Pro setzen.");
+  const apiKey = state.bananaImageApiKey;
+  if (!apiKey) {
+    throw new Error("Bitte Nano Banana Pro API-Key setzen.");
   }
 
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (state.imageApiKey) {
-    headers.Authorization = `Bearer ${state.imageApiKey}`;
+  const baseUrl = (state.bananaImageBaseUrl || "").trim();
+  if (!baseUrl) {
+    throw new Error("Für Nano Banana Pro fehlt aktuell die Base URL. Bitte im Feld 'Nano Banana Pro Base URL' eintragen.");
   }
 
-  const res = await fetch(`${state.imageBaseUrl.replace(/\/$/, "")}/images/generate`, {
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/images/generate`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      model: state.imageModel,
       prompt,
       size: "1024x1024",
     }),
@@ -574,13 +582,17 @@ async function generateImage(prompt) {
 
   state.imageProvider = provider;
   state.imageModel = $("imageGenerationModel")?.value?.trim() || state.imageModel;
-  state.imageApiKey = $("imageApiKey")?.value?.trim() || state.imageApiKey;
-  state.imageBaseUrl = $("imageBaseUrl")?.value?.trim() || state.imageBaseUrl;
+  state.openaiImageApiKey = $("openaiImageApiKey")?.value?.trim() || state.openaiImageApiKey;
+  state.bananaImageApiKey = $("bananaImageApiKey")?.value?.trim() || state.bananaImageApiKey;
+  state.bananaImageBaseUrl = $("bananaImageBaseUrl")?.value?.trim() || state.bananaImageBaseUrl;
 
   localStorage.setItem("image_provider", state.imageProvider);
   localStorage.setItem("image_model", state.imageModel || "");
-  localStorage.setItem("image_api_key", state.imageApiKey || "");
-  localStorage.setItem("image_base_url", state.imageBaseUrl || "");
+  localStorage.setItem("openai_image_api_key", state.openaiImageApiKey || "");
+  localStorage.setItem("banana_image_api_key", state.bananaImageApiKey || "");
+  localStorage.setItem("banana_image_base_url", state.bananaImageBaseUrl || "");
+
+  refreshApiUI();
 
   if (provider === "openai") {
     return generateImageWithOpenAI(prompt);
@@ -1620,6 +1632,13 @@ function bindEvents() {
     saveProjectToLocal();
   });
 
+  $("imageProvider").addEventListener("change", () => {
+    state.imageProvider = $("imageProvider").value;
+    localStorage.setItem("image_provider", state.imageProvider);
+    refreshApiUI();
+    saveProjectToLocal();
+  });
+  
   $("saveApiKey").addEventListener("click", () => {
     state.provider = "openai";
     state.apiKey = $("apiKey").value.trim();
