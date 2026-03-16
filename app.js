@@ -1069,6 +1069,7 @@ async function buildKdpDocxBlob() {
         }),
       );
     });
+  });
 
   if (description) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
