@@ -79,6 +79,97 @@ function loadProjectFromLocal() {
   }
 }
 
+function createEmptyProjectState() {
+  return {
+    provider: localStorage.getItem("ai_provider") || "openai",
+    apiKey: localStorage.getItem("openai_api_key") || "",
+    textModel: localStorage.getItem("text_model") || "gpt-4.1",
+    fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
+    imageModel: localStorage.getItem("image_model") || "gpt-image-1",
+    imageProvider: localStorage.getItem("image_provider") || "openai",
+    imageApiKey: localStorage.getItem("image_api_key") || "",
+    imageBaseUrl: localStorage.getItem("image_base_url") || "",
+    ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
+    ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
+    ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
+    research: {},
+    researchStrategy: "",
+    competitors: [],
+    marketResearch: {
+      competitorBreakdown: "",
+      patternAnalysis: "",
+      marketGapStrategy: "",
+      finalMarketAnalysis: "",
+      competitorBreakdowns: [],
+      marketGapAnalysis: "",
+      uspStrategy: "",
+    },
+    resources: [],
+    titles: [],
+    persona: "",
+    proposedBook: "",
+    outline: null,
+    flatSections: [],
+    currentSectionIndex: 0,
+    manuscriptSections: [],
+    description: "",
+    images: [],
+    imageSuggestions: [],
+  };
+}
+
+function resetProjectState() {
+  const fresh = createEmptyProjectState();
+
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+
+  Object.assign(state, fresh);
+
+  refreshApiUI();
+  fillResearchForm();
+  renderCompetitors();
+  renderResources();
+  renderImages();
+
+  $("researchStrategy").value = "";
+  $("competitorBreakdown").value = "";
+  $("patternAnalysis").value = "";
+  $("marketGapStrategy").value = "";
+  $("marketAnalysis").value = "";
+  $("personaResult").value = "";
+  $("proposedBook").value = "";
+  $("outline").value = "";
+  $("currentSection").value = "";
+  $("manuscript").value = "";
+  $("bookDescription").value = "";
+  $("editorInput").value = "";
+  $("editorOutput").value = "";
+  $("customEditPrompt").value = "";
+  $("resourceUrl").value = "";
+  $("resourceText").value = "";
+  $("focusTags").value = "";
+  $("titleOptions").innerHTML = "";
+  $("imagePrompt").value = "";
+  $("imageSuggestionList").innerHTML = "";
+
+  if ($("isbn")) $("isbn").value = "";
+  if ($("dedication")) $("dedication").value = "";
+  if ($("acknowledgements")) $("acknowledgements").value = "";
+  if ($("authorBio")) $("authorBio").value = "";
+  if ($("targetWords")) $("targetWords").value = "25000";
+  if ($("chapterCount")) $("chapterCount").value = "10";
+  if ($("structure")) $("structure").value = "Problem-Solution";
+  if ($("personaName")) $("personaName").value = "";
+  if ($("personaRefs")) $("personaRefs").value = "";
+  if ($("personaBackground")) $("personaBackground").value = "";
+  if ($("writingSample")) $("writingSample").value = "";
+
+  refreshWritingView();
+  saveProjectToLocal();
+}
+
 function extractTextFromResponse(data) {
   if (typeof data?.output_text === "string" && data.output_text.trim()) {
     return data.output_text.trim();
@@ -2824,6 +2915,16 @@ $("saveProjectJson").addEventListener("click", () => {
 });
 
 $("loadProjectJson").addEventListener("click", () => $("projectFile").click());
+
+$("resetProject").addEventListener("click", () => {
+  const confirmed = confirm(
+    "Möchtest du wirklich ein neues Projekt starten? Nicht exportierte Inhalte des aktuellen Projekts werden zurückgesetzt."
+  );
+
+  if (!confirmed) return;
+
+  resetProjectState();
+});
 
 $("projectFile").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
