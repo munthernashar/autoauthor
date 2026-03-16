@@ -6,22 +6,25 @@ const state = {
   textModel: localStorage.getItem("text_model") || "gpt-4.1",
   fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
   imageModel: localStorage.getItem("image_model") || "gpt-image-1",
+  imageProvider: localStorage.getItem("image_provider") || "openai",
+  imageApiKey: localStorage.getItem("image_api_key") || "",
+  imageBaseUrl: localStorage.getItem("image_base_url") || "",
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
- research: {},
-researchStrategy: "",
-competitors: [],
-marketResearch: {
-  competitorBreakdown: "",
-  patternAnalysis: "",
-  marketGapStrategy: "",
-  finalMarketAnalysis: "",
-  competitorBreakdowns: [],
-  marketGapAnalysis: "",
-  uspStrategy: "",
-},
-resources: [],
+  research: {},
+  researchStrategy: "",
+  competitors: [],
+  marketResearch: {
+    competitorBreakdown: "",
+    patternAnalysis: "",
+    marketGapStrategy: "",
+    finalMarketAnalysis: "",
+    competitorBreakdowns: [],
+    marketGapAnalysis: "",
+    uspStrategy: "",
+  },
+  resources: [],
   titles: [],
   persona: "",
   proposedBook: "",
@@ -31,6 +34,7 @@ resources: [],
   manuscriptSections: [],
   description: "",
   images: [],
+  imageSuggestions: [],
 };
 
 function refreshApiUI() {
@@ -39,6 +43,10 @@ function refreshApiUI() {
   $("textModel").value = state.textModel;
   $("fastTextModel").value = state.fastTextModel;
   $("imageModel").value = state.imageModel;
+  $("imageProvider").value = state.imageProvider || "openai";
+  $("imageGenerationModel").value = state.imageModel || "gpt-image-1";
+  $("imageApiKey").value = state.imageApiKey || "";
+  $("imageBaseUrl").value = state.imageBaseUrl || "";
   $("ollamaBaseUrl").value = state.ollamaBaseUrl;
   $("ollamaModel").value = state.ollamaModel;
   $("ollamaTemperature").value = state.ollamaTemperature;
@@ -367,6 +375,11 @@ $("suggestImagePlacements").addEventListener("click", async () => {
 });
 
 $("generateSuggestedImages").addEventListener("click", async () => {
+  if (!Array.isArray(state.imageSuggestions) || !state.imageSuggestions.length) {
+    alert("Bitte zuerst Bildstellen vorschlagen.");
+    return;
+  }
+
   for (const suggestion of state.imageSuggestions) {
     if (!suggestion?.imagePrompt) continue;
     try {
@@ -381,6 +394,7 @@ $("generateSuggestedImages").addEventListener("click", async () => {
       console.error("Bild konnte nicht generiert werden:", e.message);
     }
   }
+
   renderImages();
   saveProjectToLocal();
 });
@@ -468,7 +482,7 @@ async function generateImage(prompt) {
   const provider = $("imageProvider")?.value || state.imageProvider || "openai";
 
   state.imageProvider = provider;
-  state.imageModel = $("imageModel")?.value?.trim() || state.imageModel;
+  state.imageModel = $("imageGenerationModel")?.value?.trim() || state.imageModel;
   state.imageApiKey = $("imageApiKey")?.value?.trim() || state.imageApiKey;
   state.imageBaseUrl = $("imageBaseUrl")?.value?.trim() || state.imageBaseUrl;
 
