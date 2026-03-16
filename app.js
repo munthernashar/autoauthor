@@ -2039,30 +2039,10 @@ Regeln:
     const out = await callTextModel(prompt, { task: "marketAnalysis" });
     target.value = (out || "").trim();
 
-state.marketResearch = {
-  ...state.marketResearch,
-  finalMarketAnalysis: target.value,
-};
-
-saveProjectToLocal();
-
-if (!target.value) {
-  target.value = "⚠️ Leere Antwort erhalten. Bitte erneut versuchen oder ein anderes Modell wählen.";
-}
-
-    state.proposedBook = "";
-    state.titles = [];
-    state.outline = null;
-    state.flatSections = [];
-    state.currentSectionIndex = 0;
-    state.manuscriptSections = [];
-
-    $("proposedBook").value = "";
-    $("titleOptions").innerHTML = "";
-    $("outline").value = "";
-    $("currentSection").value = "";
-    $("manuscript").value = "";
-    refreshWritingView();
+    state.marketResearch = {
+      ...state.marketResearch,
+      finalMarketAnalysis: target.value,
+    };
 
     saveProjectToLocal();
 
@@ -2850,6 +2830,7 @@ $("projectFile").addEventListener("change", async (event) => {
     if (!file) return;
     const data = JSON.parse(await file.text());
     Object.assign(state, data);
+    refreshApiUI();
     fillResearchForm();
     renderCompetitors();
     renderResources();
