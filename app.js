@@ -1441,6 +1441,34 @@ function extractFirstJsonObject(text) {
 
   return "";
 }
+
+function normalizeGeneratedTitles(rawTitles = []) {
+  if (!Array.isArray(rawTitles)) return [];
+
+  return rawTitles
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const title = String(item.title || "").trim();
+      const subtitle = String(item.subtitle || "").trim();
+      let fullTitle = String(item.fullTitle || "").trim();
+
+      if (!title && !fullTitle) return null;
+
+      if (!fullTitle) {
+        fullTitle = subtitle ? `${title} – ${subtitle}` : title;
+      }
+
+      return {
+        title,
+        subtitle,
+        fullTitle,
+      };
+    })
+    .filter((item) => item && item.title)
+    .slice(0, 10);
+}
+  
 function getGenrePromptInstructions(genre = "") {
   const g = (genre || "").trim().toLowerCase();
 
@@ -2151,63 +2179,78 @@ $("generateTitles").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
+  const research = state.research || {};
+  const researchStrategy = state.researchStrategy || "";
+  const proposedBook = state.proposedBook || "";
   const marketGapStrategy =
     state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
-
   const finalMarketAnalysis =
     state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
   const system = "Du antwortest nur als valides JSON.";
 
-  const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
+  const prompt = `Du bist ein erfahrener Buchmarketing-Stratege und Positionierungs-Experte.
 
-Aufgabe:
-Generiere 10 starke, marktfähige Titelvorschläge mit passendem Untertitel für dieses Buchprojekt.
+AUFGABE:
+Generiere 10 starke, marktfähige Buchtitel mit strategisch präzisem Untertitel.
 
-Die Vorschläge sollen:
-- merkfähig
-- klar positioniert
-- nicht generisch
-- passend zum Genre
-sein.
+ZIEL:
+Der Untertitel darf nicht generisch sein.
+Er soll klar aus der strategischen Basis des Buchprojekts entstehen.
 
-BUCHPROJEKT:
-${JSON.stringify(state.research, null, 2)}
+DU MUSST DEN UNTERTITEL AUS DIESEN QUELLEN ABLEITEN:
+1. Research
+2. Research Strategy
+3. Proposed Book
+4. Market Gap + USP Strategy
+5. Final Market Analysis
 
-RESEARCH STRATEGIE:
-${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+DER UNTERTITEL SOLL:
+- das Leserproblem oder den Leserwunsch sichtbar machen
+- den Kernnutzen oder die Transformation des Buchs klar machen
+- die Marktpositionierung schärfen
+- die Differenzierung gegenüber Standardtiteln andeuten
+- zur Zielgruppe und zum Genre passen
+- konkret wirken, nicht wie austauschbare Marketingfloskel
+
+BUCHPROJEKT / RESEARCH:
+${JSON.stringify(research, null, 2)}
+
+RESEARCH STRATEGY:
+${researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
 GENRE:
-${state.research.genre || "nicht angegeben"}
+${research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
 PROPOSED BOOK:
-${state.proposedBook || "Kein Proposed Book vorhanden."}
+${proposedBook || "Kein Proposed Book vorhanden."}
 
 MARKET GAP + USP STRATEGY:
 ${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
 
-FINALE MARKTANALYSE:
+FINAL MARKET ANALYSIS:
 ${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
 
-Regeln:
-- Jeder Vorschlag muss aus Haupttitel und Untertitel bestehen.
-- Der Haupttitel soll stark, merkfähig und marktfähig sein.
-- Der Untertitel soll Nutzen, Zielgruppe, Transformation oder Differenzierung des Buchs sichtbar machen.
-- Vermeide generische Titel wie "Der ultimative Guide".
-- Die Titel müssen klar zum Genre passen.
-- Keine Nummerierung.
-- Keine Erklärung.
-- Kein Text außerhalb des JSON.
+REGELN FÜR DIE TITEL:
+- Jeder Vorschlag braucht einen Haupttitel und einen Untertitel
+- Der Haupttitel soll stark, merkfähig und marktfähig sein
+- Der Untertitel soll strategisch begründet sein und die Positionierung des Buchs sichtbar machen
+- Vermeide generische Titel wie "Der ultimative Guide"
+- Vermeide generische Untertitel wie "Ein praktischer Leitfaden"
+- Jeder Vorschlag soll professionell nach Verlag / Amazon-Top-Book wirken
+- Keine Nummerierung
+- Keine Erklärung
+- Kein Text außerhalb des JSON
 
 Gib deine Antwort ausschließlich als valides JSON in genau diesem Format zurück:
 {
   "titles": [
     {
       "title": "Haupttitel",
-      "subtitle": "Untertitel",
-      "fullTitle": "Haupttitel – Untertitel"
+      "subtitle": "Strategischer Untertitel",
+      "fullTitle": "Haupttitel – Strategischer Untertitel"
     }
   ]
 }`;
@@ -2228,12 +2271,13 @@ Gib deine Antwort ausschließlich als valides JSON in genau diesem Format zurüc
     }
 
     const parsed = JSON.parse(jsonText);
-    state.titles = Array.isArray(parsed?.titles) ? parsed.titles.slice(0, 10) : [];
+    const normalizedTitles = normalizeGeneratedTitles(parsed?.titles);
 
-    if (!state.titles.length) {
-      throw new Error("Keine Titelvorschläge im JSON gefunden.");
+    if (!normalizedTitles.length) {
+      throw new Error("Keine gültigen Titelvorschläge im JSON gefunden.");
     }
 
+    state.titles = normalizedTitles;
     list.innerHTML = "";
 
     state.titles.forEach((item) => {
