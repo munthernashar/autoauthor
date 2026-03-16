@@ -6,22 +6,25 @@ const state = {
   textModel: localStorage.getItem("text_model") || "gpt-4.1",
   fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
   imageModel: localStorage.getItem("image_model") || "gpt-image-1",
+  imageProvider: localStorage.getItem("image_provider") || "openai",
+  imageApiKey: localStorage.getItem("image_api_key") || "",
+  imageBaseUrl: localStorage.getItem("image_base_url") || "",
   ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
   ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
   ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
- research: {},
-researchStrategy: "",
-competitors: [],
-marketResearch: {
-  competitorBreakdown: "",
-  patternAnalysis: "",
-  marketGapStrategy: "",
-  finalMarketAnalysis: "",
-  competitorBreakdowns: [],
-  marketGapAnalysis: "",
-  uspStrategy: "",
-},
-resources: [],
+  research: {},
+  researchStrategy: "",
+  competitors: [],
+  marketResearch: {
+    competitorBreakdown: "",
+    patternAnalysis: "",
+    marketGapStrategy: "",
+    finalMarketAnalysis: "",
+    competitorBreakdowns: [],
+    marketGapAnalysis: "",
+    uspStrategy: "",
+  },
+  resources: [],
   titles: [],
   persona: "",
   proposedBook: "",
@@ -31,6 +34,7 @@ resources: [],
   manuscriptSections: [],
   description: "",
   images: [],
+  imageSuggestions: [],
 };
 
 function refreshApiUI() {
@@ -39,6 +43,10 @@ function refreshApiUI() {
   $("textModel").value = state.textModel;
   $("fastTextModel").value = state.fastTextModel;
   $("imageModel").value = state.imageModel;
+  $("imageProvider").value = state.imageProvider || "openai";
+  $("imageGenerationModel").value = state.imageModel || "gpt-image-1";
+  $("imageApiKey").value = state.imageApiKey || "";
+  $("imageBaseUrl").value = state.imageBaseUrl || "";
   $("ollamaBaseUrl").value = state.ollamaBaseUrl;
   $("ollamaModel").value = state.ollamaModel;
   $("ollamaTemperature").value = state.ollamaTemperature;
@@ -69,6 +77,97 @@ function loadProjectFromLocal() {
   } catch (err) {
     console.warn("Project load failed", err);
   }
+}
+
+function createEmptyProjectState() {
+  return {
+    provider: localStorage.getItem("ai_provider") || "openai",
+    apiKey: localStorage.getItem("openai_api_key") || "",
+    textModel: localStorage.getItem("text_model") || "gpt-4.1",
+    fastTextModel: localStorage.getItem("fast_text_model") || "gpt-4.1-mini",
+    imageModel: localStorage.getItem("image_model") || "gpt-image-1",
+    imageProvider: localStorage.getItem("image_provider") || "openai",
+    imageApiKey: localStorage.getItem("image_api_key") || "",
+    imageBaseUrl: localStorage.getItem("image_base_url") || "",
+    ollamaBaseUrl: localStorage.getItem("ollama_base_url") || "http://localhost:11434",
+    ollamaModel: localStorage.getItem("ollama_model") || "llama3.1:8b",
+    ollamaTemperature: localStorage.getItem("ollama_temperature") || "",
+    research: {},
+    researchStrategy: "",
+    competitors: [],
+    marketResearch: {
+      competitorBreakdown: "",
+      patternAnalysis: "",
+      marketGapStrategy: "",
+      finalMarketAnalysis: "",
+      competitorBreakdowns: [],
+      marketGapAnalysis: "",
+      uspStrategy: "",
+    },
+    resources: [],
+    titles: [],
+    persona: "",
+    proposedBook: "",
+    outline: null,
+    flatSections: [],
+    currentSectionIndex: 0,
+    manuscriptSections: [],
+    description: "",
+    images: [],
+    imageSuggestions: [],
+  };
+}
+
+function resetProjectState() {
+  const fresh = createEmptyProjectState();
+
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+
+  Object.assign(state, fresh);
+
+  refreshApiUI();
+  fillResearchForm();
+  renderCompetitors();
+  renderResources();
+  renderImages();
+
+  $("researchStrategy").value = "";
+  $("competitorBreakdown").value = "";
+  $("patternAnalysis").value = "";
+  $("marketGapStrategy").value = "";
+  $("marketAnalysis").value = "";
+  $("personaResult").value = "";
+  $("proposedBook").value = "";
+  $("outline").value = "";
+  $("currentSection").value = "";
+  $("manuscript").value = "";
+  $("bookDescription").value = "";
+  $("editorInput").value = "";
+  $("editorOutput").value = "";
+  $("customEditPrompt").value = "";
+  $("resourceUrl").value = "";
+  $("resourceText").value = "";
+  $("focusTags").value = "";
+  $("titleOptions").innerHTML = "";
+  $("imagePrompt").value = "";
+  $("imageSuggestionList").innerHTML = "";
+
+  if ($("isbn")) $("isbn").value = "";
+  if ($("dedication")) $("dedication").value = "";
+  if ($("acknowledgements")) $("acknowledgements").value = "";
+  if ($("authorBio")) $("authorBio").value = "";
+  if ($("targetWords")) $("targetWords").value = "25000";
+  if ($("chapterCount")) $("chapterCount").value = "10";
+  if ($("structure")) $("structure").value = "Problem-Solution";
+  if ($("personaName")) $("personaName").value = "";
+  if ($("personaRefs")) $("personaRefs").value = "";
+  if ($("personaBackground")) $("personaBackground").value = "";
+  if ($("writingSample")) $("writingSample").value = "";
+
+  refreshWritingView();
+  saveProjectToLocal();
 }
 
 function extractTextFromResponse(data) {
@@ -205,6 +304,192 @@ function getModelForTask(task = "") {
   return taskModelMap[task] || highQualityModel;
 }
 
+async function testOllamaConnection() {
+  const baseUrl = ($("ollamaBaseUrl").value.trim() || "http://localhost:11434").replace(/\/$/, "");
+  const model = $("ollamaModel").value.trim();
+
+  if (!model) {
+    throw new Error("Bitte zuerst ein Ollama-Modell eintragen.");
+  }
+
+  const statusEl = $("ollamaTestStatus");
+  statusEl.textContent = "Teste Verbindung zu Ollama ...";
+
+  const tagsRes = await fetch(`${baseUrl}/api/tags`);
+  if (!tagsRes.ok) {
+    const msg = await tagsRes.text();
+    throw new Error(`Ollama Server nicht erreichbar: ${tagsRes.status} ${msg}`);
+  }
+
+  const tagsData = await tagsRes.json();
+  const installedModels = Array.isArray(tagsData?.models) ? tagsData.models : [];
+  const modelExists = installedModels.some((m) => m?.name === model);
+
+  if (!modelExists) {
+    throw new Error(`Ollama läuft, aber das Modell "${model}" ist nicht installiert.`);
+  }
+
+  const testRes = await fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt: 'Antworte nur mit "OK".',
+      stream: false,
+      options: { temperature: 0 },
+    }),
+  });
+
+  if (!testRes.ok) {
+    const msg = await testRes.text();
+    throw new Error(`Modelltest fehlgeschlagen: ${testRes.status} ${msg}`);
+  }
+
+  const testData = await testRes.json();
+  const answer = String(testData?.response || "").trim();
+
+  if (!answer) {
+    throw new Error("Ollama antwortet, aber ohne Text.");
+  }
+
+  statusEl.textContent = `✅ Verbindung erfolgreich. Server erreichbar und Modell "${model}" antwortet.`;
+}
+
+async function suggestImagePlacements() {
+  if (!state.manuscriptSections.length) {
+    throw new Error("Bitte zuerst das Buch schreiben.");
+  }
+
+  const manuscript = state.manuscriptSections.join("\n\n").slice(0, 45000);
+  const outline = JSON.stringify(state.outline || {}, null, 2).slice(0, 12000);
+
+  const system = "Du antwortest nur als valides JSON.";
+  const prompt = `Du bist ein erfahrener Buchredakteur und Visual-Content-Strategist.
+
+Aufgabe:
+Analysiere das fertige Buchmanuskript und schlage sinnvolle Stellen für Bilder vor.
+
+Ziel:
+- nur dort Bilder empfehlen, wo sie den Leser wirklich unterstützen
+- keine dekorativen Füllbilder
+- pro Vorschlag direkt einen sehr guten Bildprompt erzeugen
+
+Gib JSON in genau diesem Schema zurück:
+{
+  "suggestions": [
+    {
+      "sectionIndex": 0,
+      "chapterTitle": "Kapitelname",
+      "sectionTitle": "Sektionsname",
+      "reason": "Warum ein Bild hier sinnvoll ist",
+      "anchorExcerpt": "Kurzer Auszug aus der Stelle",
+      "imageType": "illustration | diagram | infographic | scene",
+      "imagePrompt": "Fertiger Prompt für den Bildgenerator"
+    }
+  ]
+}
+
+Regeln:
+- maximal 8 Vorschläge
+- nur wirklich sinnvolle Bildstellen
+- der Prompt muss stilistisch zum Buch passen
+- wenn das Buch sachlich ist, eher Diagramme/Infografiken
+- wenn erzählerisch, eher Szenen/Illustrationen
+- keine zusätzlichen Erklärungen außerhalb des JSON
+
+OUTLINE:
+${outline}
+
+MANUSKRIPT:
+${manuscript}`;
+
+  const out = await callTextModel(prompt, { system, json: true, task: "writeSection" });
+  const jsonText = extractFirstJsonObject(out);
+  if (!jsonText) throw new Error("Bildvorschläge konnten nicht als JSON gelesen werden.");
+
+  const parsed = JSON.parse(jsonText);
+  state.imageSuggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
+  saveProjectToLocal();
+  renderImageSuggestions();
+}
+
+function renderImageSuggestions() {
+  const root = $("imageSuggestionList");
+  root.innerHTML = "";
+
+  state.imageSuggestions.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <strong>${item.chapterTitle || "Kapitel"}${item.sectionTitle ? ` – ${item.sectionTitle}` : ""}</strong>
+      <p><strong>Warum:</strong> ${item.reason || ""}</p>
+      <p><strong>Typ:</strong> ${item.imageType || ""}</p>
+      <p><strong>Textstelle:</strong> ${item.anchorExcerpt || ""}</p>
+      <textarea rows="4" data-image-prompt="${index}">${item.imagePrompt || ""}</textarea>
+      <div class="row">
+        <button data-generate-suggestion="${index}">Dieses Bild generieren</button>
+      </div>
+    `;
+    root.appendChild(card);
+  });
+
+  root.querySelectorAll("button[data-generate-suggestion]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const index = Number(btn.dataset.generateSuggestion);
+      const textarea = root.querySelector(`textarea[data-image-prompt="${index}"]`);
+      const prompt = textarea?.value?.trim();
+      if (!prompt) return;
+
+      try {
+        const url = await generateImage(prompt);
+        state.images.push({
+          type: "suggested",
+          prompt,
+          url,
+          suggestion: state.imageSuggestions[index],
+        });
+        renderImages();
+        saveProjectToLocal();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
+}
+
+$("suggestImagePlacements").addEventListener("click", async () => {
+  try {
+    await suggestImagePlacements();
+  } catch (e) {
+    alert(e.message);
+  }
+});
+
+$("generateSuggestedImages").addEventListener("click", async () => {
+  if (!Array.isArray(state.imageSuggestions) || !state.imageSuggestions.length) {
+    alert("Bitte zuerst Bildstellen vorschlagen.");
+    return;
+  }
+
+  for (const suggestion of state.imageSuggestions) {
+    if (!suggestion?.imagePrompt) continue;
+    try {
+      const url = await generateImage(suggestion.imagePrompt);
+      state.images.push({
+        type: "suggested",
+        prompt: suggestion.imagePrompt,
+        url,
+        suggestion,
+      });
+    } catch (e) {
+      console.error("Bild konnte nicht generiert werden:", e.message);
+    }
+  }
+
+  renderImages();
+  saveProjectToLocal();
+});
+
 async function callTextModel(prompt, options = {}) {
   if (state.provider === "ollama") {
     return callOllama(prompt, options);
@@ -214,11 +499,9 @@ async function callTextModel(prompt, options = {}) {
   return callOpenAI(prompt, { ...options, model: selectedModel });
 }
 
-async function generateImage(prompt) {
-  if (state.provider !== "openai") {
-    throw new Error("Bildgenerierung ist aktuell nur mit OpenAI verfügbar. Bitte Provider wechseln.");
-  }
-  if (!state.apiKey) throw new Error("Bitte API-Key setzen.");
+async function generateImageWithOpenAI(prompt) {
+  if (!state.apiKey) throw new Error("Bitte OpenAI API-Key setzen.");
+
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -226,17 +509,88 @@ async function generateImage(prompt) {
       Authorization: `Bearer ${state.apiKey}`,
     },
     body: JSON.stringify({
+      model: state.imageModel || "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+    }),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`OpenAI Bild Fehler: ${res.status} ${msg}`);
+  }
+
+  const data = await res.json();
+  return `data:image/png;base64,${data.data[0].b64_json}`;
+}
+
+async function generateImageWithNanoBananaPro(prompt) {
+  if (!state.imageBaseUrl) {
+    throw new Error("Bitte Base URL für Nano Banana Pro setzen.");
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (state.imageApiKey) {
+    headers.Authorization = `Bearer ${state.imageApiKey}`;
+  }
+
+  const res = await fetch(`${state.imageBaseUrl.replace(/\/$/, "")}/images/generate`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
       model: state.imageModel,
       prompt,
       size: "1024x1024",
     }),
   });
+
   if (!res.ok) {
     const msg = await res.text();
-    throw new Error(`Bild Fehler: ${res.status} ${msg}`);
+    throw new Error(`Nano Banana Pro Bild Fehler: ${res.status} ${msg}`);
   }
+
   const data = await res.json();
-  return `data:image/png;base64,${data.data[0].b64_json}`;
+
+  if (data?.b64_json) {
+    return `data:image/png;base64,${data.b64_json}`;
+  }
+
+  if (data?.data?.[0]?.b64_json) {
+    return `data:image/png;base64,${data.data[0].b64_json}`;
+  }
+
+  if (data?.url) {
+    return data.url;
+  }
+
+  throw new Error("Nano Banana Pro hat kein unterstütztes Bildformat zurückgegeben.");
+}
+
+async function generateImage(prompt) {
+  const provider = $("imageProvider")?.value || state.imageProvider || "openai";
+
+  state.imageProvider = provider;
+  state.imageModel = $("imageGenerationModel")?.value?.trim() || state.imageModel;
+  state.imageApiKey = $("imageApiKey")?.value?.trim() || state.imageApiKey;
+  state.imageBaseUrl = $("imageBaseUrl")?.value?.trim() || state.imageBaseUrl;
+
+  localStorage.setItem("image_provider", state.imageProvider);
+  localStorage.setItem("image_model", state.imageModel || "");
+  localStorage.setItem("image_api_key", state.imageApiKey || "");
+  localStorage.setItem("image_base_url", state.imageBaseUrl || "");
+
+  if (provider === "openai") {
+    return generateImageWithOpenAI(prompt);
+  }
+
+  if (provider === "nanobananapro") {
+    return generateImageWithNanoBananaPro(prompt);
+  }
+
+  throw new Error(`Unbekannter Bildprovider: ${provider}`);
 }
 
 function download(filename, content, mime) {
@@ -254,6 +608,60 @@ function downloadBlob(filename, blob) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) {
+    throw new Error("PDF.js ist nicht geladen. Bitte index.html prüfen.");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = "";
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item) => item.str).join(" ");
+    fullText += `\n\n[Seite ${pageNum}]\n${pageText}`;
+  }
+
+  return fullText.trim();
+}
+
+async function extractFileResource(file) {
+  const lowerName = String(file.name || "").toLowerCase();
+
+  if (lowerName.endsWith(".pdf")) {
+    const pdfText = await extractPdfText(file);
+    return {
+      type: "pdf",
+      label: file.name,
+      content: pdfText.slice(0, 50000),
+    };
+  }
+
+  if (
+    lowerName.endsWith(".txt") ||
+    lowerName.endsWith(".md") ||
+    lowerName.endsWith(".json") ||
+    lowerName.endsWith(".csv") ||
+    lowerName.endsWith(".html")
+  ) {
+    const text = await file.text();
+    return {
+      type: "file",
+      label: file.name,
+      content: text.slice(0, 50000),
+    };
+  }
+
+  return {
+    type: "file",
+    label: file.name,
+    content: `[Datei ${file.name} konnte nicht automatisch extrahiert werden. Bitte relevante Passagen zusätzlich als Textnotiz einfügen.]`,
+  };
 }
 
 function escapeRegExp(str = "") {
@@ -661,6 +1069,7 @@ async function buildKdpDocxBlob() {
         }),
       );
     });
+  });
 
   if (description) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -750,21 +1159,23 @@ async function buildKdpDocxBlob() {
 }
 
 function readResearchForm() {
-  state.research = {
-    bookTitle: $("bookTitle").value.trim(),
-    authorName: $("authorName").value.trim(),
-    genre: $("genre").value.trim(),
-    topic: $("topic").value.trim(),
-    stance: $("stance").value.trim(),
-    differentiator: $("differentiator").value.trim(),
-    tone: $("tone").value.trim(),
-    audience: $("audience").value.trim(),
-  };
+state.research = {
+  bookTitle: $("bookTitle").value.trim(),
+  subtitle: $("bookSubtitle").value.trim(),
+  authorName: $("authorName").value.trim(),
+  genre: $("genre").value.trim(),
+  topic: $("topic").value.trim(),
+  stance: $("stance").value.trim(),
+  differentiator: $("differentiator").value.trim(),
+  tone: $("tone").value.trim(),
+  audience: $("audience").value.trim(),
+};
 }
 
 function fillResearchForm() {
   const r = state.research || {};
   $("bookTitle").value = r.bookTitle || "";
+  $("bookSubtitle").value = r.subtitle || "";
   $("authorName").value = r.authorName || "";
   $("genre").value = r.genre || "";
   $("topic").value = r.topic || "";
@@ -1031,6 +1442,34 @@ function extractFirstJsonObject(text) {
 
   return "";
 }
+
+function normalizeGeneratedTitles(rawTitles = []) {
+  if (!Array.isArray(rawTitles)) return [];
+
+  return rawTitles
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const title = String(item.title || "").trim();
+      const subtitle = String(item.subtitle || "").trim();
+      let fullTitle = String(item.fullTitle || "").trim();
+
+      if (!title && !fullTitle) return null;
+
+      if (!fullTitle) {
+        fullTitle = subtitle ? `${title} – ${subtitle}` : title;
+      }
+
+      return {
+        title,
+        subtitle,
+        fullTitle,
+      };
+    })
+    .filter((item) => item && item.title)
+    .slice(0, 10);
+}
+  
 function getGenrePromptInstructions(genre = "") {
   const g = (genre || "").trim().toLowerCase();
 
@@ -1215,6 +1654,14 @@ function bindEvents() {
     refreshApiUI();
   });
 
+  $("testOllama").addEventListener("click", async () => {
+  try {
+    await testOllamaConnection();
+  } catch (e) {
+    $("ollamaTestStatus").textContent = `❌ ${e.message}`;
+  }
+});
+  
   $("saveResearch").addEventListener("click", () => {
     readResearchForm();
     saveProjectToLocal();
@@ -1714,31 +2161,8 @@ Regeln:
 
     state.marketResearch = {
       ...state.marketResearch,
-      competitorBreakdown: target.value,
-      patternAnalysis: "",
-      marketGapStrategy: "",
-      finalMarketAnalysis: "",
-      marketGapAnalysis: "",
-      uspStrategy: "",
+      finalMarketAnalysis: target.value,
     };
-
-    $("patternAnalysis").value = "";
-    $("marketGapStrategy").value = "";
-    $("marketAnalysis").value = "";
-
-    state.proposedBook = "";
-    state.titles = [];
-    state.outline = null;
-    state.flatSections = [];
-    state.currentSectionIndex = 0;
-    state.manuscriptSections = [];
-
-    $("proposedBook").value = "";
-    $("titleOptions").innerHTML = "";
-    $("outline").value = "";
-    $("currentSection").value = "";
-    $("manuscript").value = "";
-    refreshWritingView();
 
     saveProjectToLocal();
 
@@ -1756,82 +2180,126 @@ $("generateTitles").addEventListener("click", async () => {
   readResearchForm();
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
+  const research = state.research || {};
+  const researchStrategy = state.researchStrategy || "";
+  const proposedBook = state.proposedBook || "";
   const marketGapStrategy =
     state.marketResearch?.marketGapStrategy || $("marketGapStrategy")?.value || "";
-
   const finalMarketAnalysis =
     state.marketResearch?.finalMarketAnalysis || $("marketAnalysis")?.value || "";
 
-  const prompt = `Du bist ein erfahrener Buchmarketing-Stratege.
+  const system = "Du antwortest nur als valides JSON.";
 
-Aufgabe:
-Generiere 10 starke, marktfähige Buchtitel für dieses Buchprojekt.
+  const prompt = `Du bist ein erfahrener Buchmarketing-Stratege und Positionierungs-Experte.
 
-Die Titel sollen:
-- merkfähig
-- klar positioniert
-- nicht generisch
-- passend zum Genre
-sein.
+AUFGABE:
+Generiere 10 starke, marktfähige Buchtitel mit strategisch präzisem Untertitel.
 
-BUCHPROJEKT:
-${JSON.stringify(state.research, null, 2)}
+ZIEL:
+Der Untertitel darf nicht generisch sein.
+Er soll klar aus der strategischen Basis des Buchprojekts entstehen.
 
-RESEARCH STRATEGIE:
-${state.researchStrategy || "Kein Strategie-Briefing vorhanden."}
+DU MUSST DEN UNTERTITEL AUS DIESEN QUELLEN ABLEITEN:
+1. Research
+2. Research Strategy
+3. Proposed Book
+4. Market Gap + USP Strategy
+5. Final Market Analysis
+
+DER UNTERTITEL SOLL:
+- das Leserproblem oder den Leserwunsch sichtbar machen
+- den Kernnutzen oder die Transformation des Buchs klar machen
+- die Marktpositionierung schärfen
+- die Differenzierung gegenüber Standardtiteln andeuten
+- zur Zielgruppe und zum Genre passen
+- konkret wirken, nicht wie austauschbare Marketingfloskel
+
+BUCHPROJEKT / RESEARCH:
+${JSON.stringify(research, null, 2)}
+
+RESEARCH STRATEGY:
+${researchStrategy || "Kein Strategie-Briefing vorhanden."}
 
 GENRE:
-${state.research.genre || "nicht angegeben"}
+${research.genre || "nicht angegeben"}
 
 ${genreInstructions}
 
 PROPOSED BOOK:
-${state.proposedBook || "Kein Proposed Book vorhanden."}
+${proposedBook || "Kein Proposed Book vorhanden."}
 
 MARKET GAP + USP STRATEGY:
 ${marketGapStrategy || "Keine Market-Gap-Strategie vorhanden."}
 
-FINALE MARKTANALYSE:
+FINAL MARKET ANALYSIS:
 ${finalMarketAnalysis || "Keine finale Marktanalyse vorhanden."}
 
-Regeln:
-- Die Titel müssen die zentrale Idee oder Transformation des Buchs andeuten.
-- Die Titel sollen eine klare Positionierung im Markt erkennen lassen.
-- Vermeide generische Titel wie "Der ultimative Guide".
-- Wenn es zum Genre passt, kombiniere Haupttitel + Untertitel.
-- Untertitel dürfen Nutzen, Zielgruppe oder Differenzierung klar machen.
-- Die Titel müssen zum Genre passen.
+REGELN FÜR DIE TITEL:
+- Jeder Vorschlag braucht einen Haupttitel und einen Untertitel
+- Der Haupttitel soll stark, merkfähig und marktfähig sein
+- Der Untertitel soll strategisch begründet sein und die Positionierung des Buchs sichtbar machen
+- Vermeide generische Titel wie "Der ultimative Guide"
+- Vermeide generische Untertitel wie "Ein praktischer Leitfaden"
+- Jeder Vorschlag soll professionell nach Verlag / Amazon-Top-Book wirken
+- Keine Nummerierung
+- Keine Erklärung
+- Kein Text außerhalb des JSON
 
-Format:
-Nur Titelzeilen.
-
-Beispiel:
-Atomic Habits – Tiny Changes, Remarkable Results
-
-Keine Nummerierung.
-Keine Erklärung.
-Nur die Titel.`;
+Gib deine Antwort ausschließlich als valides JSON in genau diesem Format zurück:
+{
+  "titles": [
+    {
+      "title": "Haupttitel",
+      "subtitle": "Strategischer Untertitel",
+      "fullTitle": "Haupttitel – Strategischer Untertitel"
+    }
+  ]
+}`;
 
   const list = $("titleOptions");
   list.innerHTML = "<li>Generiere...</li>";
+
   try {
-const out = await callTextModel(prompt, { task: "titles" });
-    state.titles = out
-      .split("\n")
-      .map((s) => s.replace(/^[-\d.\s]+/, "").trim())
-      .filter(Boolean)
-      .slice(0, 10);
+    const out = await callTextModel(prompt, {
+      system,
+      json: true,
+      task: "titles",
+    });
+
+    const jsonText = extractFirstJsonObject(out);
+    if (!jsonText) {
+      throw new Error("Titel-JSON konnte nicht gelesen werden.");
+    }
+
+    const parsed = JSON.parse(jsonText);
+    const normalizedTitles = normalizeGeneratedTitles(parsed?.titles);
+
+    if (!normalizedTitles.length) {
+      throw new Error("Keine gültigen Titelvorschläge im JSON gefunden.");
+    }
+
+    state.titles = normalizedTitles;
     list.innerHTML = "";
-    state.titles.forEach((t) => {
+
+    state.titles.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = t;
+      li.innerHTML = `
+        <strong>${item.title || ""}</strong>
+        ${item.subtitle ? `<br /><small>${item.subtitle}</small>` : ""}
+      `;
+
       li.addEventListener("click", () => {
-        $("bookTitle").value = t;
+        $("bookTitle").value = item.title || "";
+        if ($("bookSubtitle")) {
+          $("bookSubtitle").value = item.subtitle || "";
+        }
         readResearchForm();
         saveProjectToLocal();
       });
+
       list.appendChild(li);
     });
+
     saveProjectToLocal();
   } catch (e) {
     list.innerHTML = `<li>${e.message}</li>`;
@@ -1841,7 +2309,13 @@ const out = await callTextModel(prompt, { task: "titles" });
 $("addResourceUrl").addEventListener("click", () => {
   const url = $("resourceUrl").value.trim();
   if (!url) return;
-  state.resources.push({ type: "url", label: url, content: url });
+
+  state.resources.push({
+    type: "url",
+    label: url,
+    content: `Externe Quelle: ${url}\nHinweis: URL wurde als Referenz gespeichert. Für verlässliche Nutzung bitte Kerninhalte zusätzlich als Textnotiz einfügen.`,
+  });
+
   $("resourceUrl").value = "";
   renderResources();
   saveProjectToLocal();
@@ -1858,16 +2332,22 @@ $("addResourceText").addEventListener("click", () => {
 
 $("resourceFile").addEventListener("change", async (event) => {
   const files = Array.from(event.target.files || []);
+
   for (const file of files) {
-    const content = await file.text();
-     state.resources.push({
-       type: "file",
+    try {
+      const resource = await extractFileResource(file);
+      state.resources.push(resource);
+    } catch (e) {
+      state.resources.push({
+        type: "file",
         label: file.name,
-        content: content.slice(0, 30000),
-    });
+        content: `[Fehler beim Einlesen von ${file.name}: ${e.message}]`,
+      });
+    }
   }
-    renderResources();
-    saveProjectToLocal();
+
+  renderResources();
+  saveProjectToLocal();
 });
 
 $("generatePersona").addEventListener("click", async () => {
@@ -2178,9 +2658,16 @@ async function writeSection(isRewrite = false) {
 
   const previous = state.manuscriptSections.join("\n\n").slice(-12000);
   const resourceContext = state.resources
-    .map((r) => `${r.type}:${r.label}\n${r.content?.slice(0, 1200) || ""}`)
-    .join("\n\n")
-    .slice(0, 12000);
+    .map((r, i) => {
+      return [
+        `RESOURCE ${i + 1}`,
+        `Typ: ${r.type}`,
+        `Label: ${r.label}`,
+        `Inhalt: ${(r.content || "").slice(0, 1800)}`,
+      ].join("\n");
+    })
+    .join("\n\n---\n\n")
+    .slice(0, 20000);
 
   const genreInstructions = getGenrePromptInstructions(state.research.genre);
 
@@ -2359,7 +2846,9 @@ $("generateImage").addEventListener("click", async () => {
 
 $("generateCover").addEventListener("click", async () => {
     const title = state.research.bookTitle || "Untitled";
-    const subtitle = `A practical guide on ${state.research.topic || "your topic"}`;
+    const subtitle =
+      state.research.subtitle ||
+      `A practical guide on ${state.research.topic || "your topic"}`;
     const prompt = `Professional book cover design, readable typography, title: "${title}", subtitle: "${subtitle}", author: "${state.research.authorName || "Author"}", modern non-fiction, clean layout`;
     try {
       const url = await generateImage(prompt);
@@ -2472,11 +2961,22 @@ $("saveProjectJson").addEventListener("click", () => {
 
 $("loadProjectJson").addEventListener("click", () => $("projectFile").click());
 
+$("resetProject").addEventListener("click", () => {
+  const confirmed = confirm(
+    "Möchtest du wirklich ein neues Projekt starten? Nicht exportierte Inhalte des aktuellen Projekts werden zurückgesetzt."
+  );
+
+  if (!confirmed) return;
+
+  resetProjectState();
+});
+
 $("projectFile").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const data = JSON.parse(await file.text());
     Object.assign(state, data);
+    refreshApiUI();
     fillResearchForm();
     renderCompetitors();
     renderResources();

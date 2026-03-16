@@ -32,18 +32,19 @@
             <button id="saveApiKey">Verbindung speichern</button>
             <button id="clearApiKey" class="secondary">Löschen</button>
           </div>
-        <div class="row">
-          <label>Hauptmodell:
-            <input id="textModel" value="gpt-4.1" />
-          </label>
-          <label>Fast-Modell:
-            <input id="fastTextModel" value="gpt-4.1-mini" />
-          </label>
-          <label>Bildmodell:
-            <input id="imageModel" value="gpt-image-1" />
-          </label>
+          <div class="row">
+            <label>Hauptmodell:
+              <input id="textModel" value="gpt-4.1" />
+            </label>
+            <label>Fast-Modell:
+              <input id="fastTextModel" value="gpt-4.1-mini" />
+            </label>
+            <label>Bildmodell:
+              <input id="imageModel" value="gpt-image-1" />
+            </label>
+          </div>
         </div>
-
+        
         <div id="ollamaConfig">
           <p>Ollama lokal: Gib URL + Modell ein (z. B. `http://localhost:11434`, `llama3.1:8b`).</p>
           <div class="grid two">
@@ -53,18 +54,21 @@
           </div>
           <div class="row">
             <button id="saveOllama" type="button">Verbindung speichern</button>
+            <button id="testOllama" type="button" class="secondary">Verbindung testen</button>
           </div>
-          <small>Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.</small>
+          <small id="ollamaTestStatus" class="status">
+            Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.
+          </small>
         </div>
-
         <p id="apiStatus" class="status"></p>
       </section>
 
       <section class="card">
         <h2>2) Projekt / Research</h2>
-        <div class="grid two">
-          <label>Buchtitel (optional)<input id="bookTitle" /></label>
-          <label>Autorname / Pen Name<input id="authorName" /></label>
+          <div class="grid two">
+           <label>Buchtitel (optional)<input id="bookTitle" /></label>
+           <label>Untertitel (optional)<input id="bookSubtitle" /></label>
+           <label>Autorname / Pen Name<input id="authorName" /></label>
            <label>Genre
             <select id="genre">
             <option value="">Bitte Genre wählen</option>
@@ -220,7 +224,7 @@
         <textarea id="resourceText" rows="4" placeholder="Research-Notizen"></textarea>
         <div class="row">
           <button id="addResourceText">Text hinzufügen</button>
-          <input id="resourceFile" type="file" multiple />
+          <input id="resourceFile" type="file" multiple accept=".txt,.md,.json,.csv,.html,.pdf" />>
         </div>
         <ul id="resourceList"></ul>
       </section>
@@ -287,11 +291,35 @@
 
       <section class="card">
         <h2>10) Bilder & Cover</h2>
+      
+        <div class="grid two">
+          <label>Bild-Provider
+            <select id="imageProvider">
+              <option value="openai">OpenAI</option>
+              <option value="nanobananapro">Nano Banana Pro</option>
+            </select>
+          </label>
+          <label>Bildmodell
+            <input id="imageGenerationModel" value="gpt-image-1" />
+          </label>
+          <label>Bild API Key (optional je nach Provider)
+            <input id="imageApiKey" type="password" autocomplete="off" />
+          </label>
+          <label>Bild Base URL (optional je nach Provider)
+            <input id="imageBaseUrl" placeholder="https://api.example.com" />
+          </label>
+        </div>
+      
         <textarea id="imagePrompt" rows="3" placeholder="Prompt für Innenbild / Diagramm"></textarea>
-        <div class="row">
+      
+        <div class="row wrap">
           <button id="generateImage">Bild generieren</button>
           <button id="generateCover">Cover generieren</button>
+          <button id="suggestImagePlacements">Bildstellen vorschlagen</button>
+          <button id="generateSuggestedImages">Vorgeschlagene Bilder generieren</button>
         </div>
+      
+        <div id="imageSuggestionList"></div>
         <div id="imageResults" class="images"></div>
       </section>
 
@@ -299,13 +327,14 @@
         <h2>11) Beschreibung & Export</h2>
         <button id="generateDescription">Buchbeschreibung generieren</button>
         <textarea id="bookDescription" rows="8"></textarea>
-        <div class="row wrap">
-          <button id="downloadMarkdown">Download .md</button>
-          <button id="downloadDocHtml">Download .docx (KDP)</button>
-          <button id="saveProjectJson" class="secondary">Projekt JSON exportieren</button>
-          <button id="loadProjectJson" class="secondary">Projekt JSON importieren</button>
-          <input id="projectFile" type="file" accept="application/json" hidden />
-        </div>
+      <div class="row wrap">
+        <button id="downloadMarkdown">Download .md</button>
+        <button id="downloadDocHtml">Download .docx (KDP)</button>
+        <button id="saveProjectJson" class="secondary">Projekt JSON exportieren</button>
+        <button id="loadProjectJson" class="secondary">Projekt JSON importieren</button>
+        <button id="resetProject" class="secondary">Neues Projekt</button>
+        <input id="projectFile" type="file" accept="application/json" hidden />
+      </div>
       </section>
     </main>
 
@@ -313,6 +342,7 @@
       <small>Hinweis: Diese App ist nur zum Privaten Gebrauch erlaubt. Inhaber ist OpenBrain LLC</small>
     </footer>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
     <script src="app.js" type="module"></script>
   </body>
 </html>
