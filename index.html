@@ -32,18 +32,19 @@
             <button id="saveApiKey">Verbindung speichern</button>
             <button id="clearApiKey" class="secondary">Löschen</button>
           </div>
-        <div class="row">
-          <label>Hauptmodell:
-            <input id="textModel" value="gpt-4.1" />
-          </label>
-          <label>Fast-Modell:
-            <input id="fastTextModel" value="gpt-4.1-mini" />
-          </label>
-          <label>Bildmodell:
-            <input id="imageModel" value="gpt-image-1" />
-          </label>
+          <div class="row">
+            <label>Hauptmodell:
+              <input id="textModel" value="gpt-4.1" />
+            </label>
+            <label>Fast-Modell:
+              <input id="fastTextModel" value="gpt-4.1-mini" />
+            </label>
+            <label>Bildmodell:
+              <input id="imageModel" value="gpt-image-1" />
+            </label>
+          </div>
         </div>
-
+        
         <div id="ollamaConfig">
           <p>Ollama lokal: Gib URL + Modell ein (z. B. `http://localhost:11434`, `llama3.1:8b`).</p>
           <div class="grid two">
@@ -51,15 +52,14 @@
             <label>Ollama Modell<input id="ollamaModel" value="llama3.1:8b" /></label>
             <label>Temperatur (optional)<input id="ollamaTemperature" type="number" step="0.1" placeholder="0.7" /></label>
           </div>
-        <div class="row">
-          <button id="saveOllama" type="button">Verbindung speichern</button>
-          <button id="testOllama" type="button" class="secondary">Verbindung testen</button>
+          <div class="row">
+            <button id="saveOllama" type="button">Verbindung speichern</button>
+            <button id="testOllama" type="button" class="secondary">Verbindung testen</button>
+          </div>
+          <small id="ollamaTestStatus" class="status">
+            Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.
+          </small>
         </div>
-        <small id="ollamaTestStatus" class="status">
-          Hinweis: Bild/Cover-Generierung ist nur mit OpenAI verfügbar.
-        </small>
-        </div>
-
         <p id="apiStatus" class="status"></p>
       </section>
 
